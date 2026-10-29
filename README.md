@@ -1,39 +1,37 @@
 # LIGO — O Desafio dos Lasers
 
-## Navegação de retorno (29/10/2026)
+## A Ciência — cinco telas sem rolagem (29/10/2026)
 
-O usuário pode retornar usando botões explícitos, sem depender do botão Voltar do navegador:
+A aba **A ciência** foi transformada numa navegação interna, com uma tela inicial sobre Gabriela González e **quatro telas independentes**, todas planejadas para caber no espaço disponível do jogo **sem rolagem vertical nem horizontal**.
 
-- Na página **A ciência**, uma barra compacta e fixa durante a leitura oferece **Voltar à seção anterior** e **Início da ciência**.
-- Os botões **Explorar a história** e **Entender o LIGO** registram a posição de rolagem anterior e levam ao conteúdo solicitado. O botão Voltar retorna precisamente à posição anterior.
-- Após uma rolagem manual, Voltar primeiro retorna ao topo. No topo, Voltar abre a página visitada antes.
-- Ranking, resultados e outras páginas internas exibem **← Voltar** no cabeçalho; o final da seção Ciência tem controles adicionais.
-- A navegação conserva o histórico de até 20 páginas e 15 saltos entre seções em memória, sem armazenamento de dados pessoais.
-- Os botões funcionam com teclado e se adaptam à largura da tela. Animação de rolagem respeita a preferência por movimento reduzido.
+### Navegação
 
-O sistema de fases, os tempos e o ranking não foram modificados por esta melhoria. Navegação em JavaScript validada com 10 testes simulados de histórico, salto e retorno, sem falhas. A validação visual em navegador real ainda está pendente.
+- **A ciência (visão geral):** fotografia de Gabriela González, resumo e quatro cards clicáveis.
+- **Quem é Gabriela?** (`science-bio`): formação, origem, pesquisa na LSU, fotografia e biografia oficial.
+- **Suas contribuições** (`science-career`): linha do tempo da pesquisadora, liderança e três contribuições científicas.
+- **Projeto LIGO** (`science-ligo`): fotografia oficial, funcionamento dos observatórios, braços de quatro quilômetros e detecção histórica.
+- **Entenda os lasers** (`science-lab`): experimento SVG com três etapas interativas e opção de começar a jogar.
 
-## A Ciência — edição visual Gabriela González
+Os botões **← Voltar** usam o histórico de navegação entre telas. **Visão geral** abre o menu da ciência, enquanto o menu principal continua permitindo acesso a Início, Ranking e Jogo. As telas são renderizadas dentro do `index.html` original, com JavaScript sem frameworks; **não são HTMLs separados**.
 
-A página **A Ciência** foi redesenhada como uma exposição digital com **Gabriela González no centro da narrativa** e o LIGO como continuação natural de sua história.
+### Design, responsividade e acessibilidade
 
-### Percurso
+- O `main` das cinco telas de ciência mantém `overflow:hidden` em vez de página longa.
+- Grades adaptam o conteúdo a desktop, tablet e celular; há ajustes específicos para telas baixas e aparelhos estreitos.
+- A informação foi distribuída em telas menores para evitar excesso de texto e permitir leitura objetiva.
+- Controles funcionam por toque e teclado; imagens secundárias usam carregamento diferido.
+- O diagrama de interferometria continua interativo e marcado como **simplificação didática**.
+- A jogabilidade e o sistema Supabase/ranking não foram alterados.
 
-1. **Capa editorial:** retrato de Gabriela na sala de controle (LSU), tipografia expressiva, introdução breve e botões para navegar.
-2. **Quem é Gabriela:** resumo legível de sua formação, carreira e pesquisa, acompanhado de uma segunda foto oficial da LSU.
-3. **Linha do tempo pessoal:** 1988, 1995, 1997–2001 e 2011–2017, com destaque para a atuação no LIGO.
-4. **Contribuições:** redução de ruído, calibração e colaboração científica, explicadas em três cards curtos.
-5. **Projeto LIGO:** imagem aérea oficial do observatório Livingston, explicação concisa dos dois detectores e braços de 4 km, além de um bloco sobre a primeira detecção em 2015.
-6. **Laboratório interativo:** diagrama SVG preservado, com três etapas e mudança de estado somente por clique.
-7. **Chamada para jogar:** conexão entre a ciência real e os desafios didáticos com espelhos, com referências e créditos.
+### Fontes e imagens
 
-**Navegação:** menus de salto para biografia, trajetória, LIGO e experimento; barra **Voltar / Início** permanece visível ao rolar e usa o histórico das seções. A rolagem continua restrita à página A Ciência; a área de jogo conserva sua organização.
+- [LSU — Gabriela González](https://www.lsu.edu/physics/people/faculty/gonzalez.php)
+- [Pesquisa acadêmica](https://www.phys.lsu.edu/faculty/gonzalez/)
+- [LIGO Laboratory — como funciona](https://www.ligo.caltech.edu/page/what-is-ligo)
+- [LIGO Laboratory — primeira detecção](https://www.ligo.caltech.edu/detection)
+- [LIGO — fotografia aérea](https://dcc.ligo.org/LIGO-G0900706/public)
 
-**Responsividade:** grades adaptativas para desktop, tablet e celular; textos com largura limitada, tipografia escalável e contraste consistente. Fotografias secundárias usam `loading="lazy"`; fotografia da capa usa prioridade alta. Sem dependências externas de JavaScript, animações contínuas ou alteração do ranking.
-
-**Fontes e imagens:** [Gabriela na LSU](https://www.lsu.edu/physics/people/faculty/gonzalez.php), [pesquisa acadêmica](https://www.phys.lsu.edu/faculty/gonzalez/), [LIGO](https://www.ligo.caltech.edu/page/what-is-ligo), [primeira detecção](https://www.ligo.caltech.edu/detection) e [fotografia aérea do laboratório](https://dcc.ligo.org/LIGO-G0900706/public). O experimento é explicitamente apresentado como simplificação educativa.
-
-**Validação:** sintaxe JavaScript validada, seções e navegação simuladas, salto e retorno por seção conferidos, três etapas do diagrama testadas. Não foi executada auditoria visual em navegadores físicos.
+**Verificação:** JavaScript e renderização das cinco telas foram validados em simulação; histórico de navegação e três etapas do experimento testados. Ainda falta avaliação visual em navegadores reais para confirmar ausência de cortes em todos os tamanhos.
 
 
 Jogo educativo com cinco circuitos de reflexão por partida, com posições geradas de forma variável.
