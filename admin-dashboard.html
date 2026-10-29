@@ -179,14 +179,14 @@ function startLive(){
   if(data.event==='broadcast'&&(data.payload?.event==='changed'||data.payload?.payload?.change))scheduleRefresh();
  };
  socket.onerror=()=>liveState('offline');
- socket.onclose=()=>{liveState('offline');if(heartbeat)clearInterval(heartbeat);heartbeat=null;if(session)setTimeout(()=>{if(session&&!socket?.readyState)startLive()},5000)};
+ socket.onclose=()=>{liveState('offline');if(heartbeat)clearInterval(heartbeat);heartbeat=null;socket=null;if(session)setTimeout(()=>{if(session&&!socket)startLive()},5000)};
  }catch{liveState('offline')}
  // Atualização automática também cobre reconexões, perda de eventos e navegadores sem WebSocket.
  window.autoPolling=setInterval(()=>{if(session&&!document.hidden)loadSnapshot(true)},12000);
 }
 async function loadSnapshot(silent=false){
  if(refreshing||!session)return;refreshing=true;
- try{const data=await getAdmin('snapshot');snapshot=data.snapshot;render();if(!connected)liveState('loading')}
+ try{const data=await getAdmin('snapshot');snapshot=data.snapshot;render();if(!connected){liveState('loading');$('connectionStatus').textContent='Atualização automática ativa'}}
  catch(e){if(!silent)notify('Erro ao sincronizar: '+e.message);if(e.message.includes('autorização')||e.message.includes('expirou'))logout(true);else liveState('offline')}
  finally{refreshing=false}
 }
