@@ -23,30 +23,27 @@ Jogo educativo com cinco circuitos de reflexão por partida, com posições gera
 
 Os circuitos são gerados no Supabase, com posições variáveis do emissor, receptor e espelhos. A complexidade é progressiva em dois eixos: a quantidade de reflexões obrigatórias e o comprimento dos segmentos entre as curvas (mais curtos no Difícil).
 
-### Giro completo de 360°
+### Controles simplificados
 
-- Clique em um espelho do tabuleiro para girar **+45°**.
-- Arraste o espelho com mouse ou toque para girá-lo em qualquer direção ao longo da volta completa, com encaixe em incrementos de 45°.
-- Use os botões **↶ −45°** e **↷ +45°** abaixo do tabuleiro para ajustar com precisão.
-- O visor de cada espelho mostra a orientação de **0°, 45°, 90°, 135°, 180°, 225°, 270° ou 315°**. Após 315°, o próximo passo retorna a 0° e o sprite gira suavemente até 360°.
-- Como a simulação usa trajetos horizontais e verticais, o feixe é refletido nas orientações equivalentes **0°/180°** e **90°/270°**. Orientações intermediárias sem alinhamento **interrompem o feixe** e sinalizam o espelho.
-- A animação respeita a opção de movimento reduzido do dispositivo.
+O espelho possui duas posições físicas, `/` e `\\`. Clique ou toque para alterná-las. O código mantém o caminho e a verificação da reflexão compatíveis com a API.
 
-A solução do servidor continua protegida como orientações ópticas equivalentes (duas possibilidades a cada 180°); antes de registrar uma fase no ranking, a API verifica os ângulos informados pelo cliente e normaliza as duas direções. Todas as soluções equivalentes são aceitas, sem exigir uma volta ou direção de giro específicas. O ranking salva o melhor tempo **por jogador e por dificuldade**. A aba Ranking permite alternar entre os três níveis e consulta os dados automaticamente.
+O ranking salva o melhor tempo **por jogador e por dificuldade**. A aba Ranking permite alternar entre os três níveis e consulta os dados automaticamente.
 
 O cadastro exige dois campos separados: Nome (2 a 35 caracteres) e Sobrenome (2 a 45 caracteres). Não aceita cadastrar um jogador novo com somente um nome. Os registros anteriores continuam armazenados como `legado` e não são comparados aos novos modos. Pessoas com o mesmo nome completo em navegadores diferentes podem ter identidades diferentes; no mesmo navegador o perfil é reaproveitado pelo nome completo digitado.
 
 **Privacidade:** o nome completo é publicado no ranking. Como a feira pode receber menores de idade, obtenha consentimento adequado dos responsáveis ou considere mudar para a exibição de nome e inicial do sobrenome antes de divulgar o endereço do jogo.
 
-**Estado da verificação:** o gerador foi validado com 900 circuitos nos três níveis, e 600 circuitos adicionais passaram nos testes cruzados com a lógica de ângulos da interface, incluindo reflexões equivalentes, bloqueio de 45° e retorno 315°→0°. O JavaScript da interface passou na verificação de sintaxe. O deploy `ligo-api` está na versão 4. Testes HTTP reais com múltiplos visitantes ainda não foram concluídos neste ambiente.
+**Estado da verificação:** o gerador foi validado com 900 circuitos nos três níveis, e 600 circuitos adicionais passaram nos testes cruzados com a lógica de ângulos da interface, incluindo reflexões equivalentes, bloqueio de 45° e retorno 315°→0°. O JavaScript da interface passou na verificação de sintaxe. O deploy `ligo-api` está na versão 5. Testes HTTP reais com múltiplos visitantes ainda não foram concluídos neste ambiente.
 
-## Correção de estabilidade do tabuleiro (29/10/2026)
+## Modo leve — retorno aos dois sentidos (29/10/2026)
 
-A interface apresentou o tabuleiro vazio quando a chave de cena `runId:stage` foi usada erroneamente como índice numérico de fase. A função `syncVisual()` agora usa a **chave textual apenas para distinguir a partida** e o **número inteiro de fase para selecionar o circuito**. Com isso, inicializa corretamente `visual.angles` e `visual.beamTo` e restaura os gráficos do laser e dos espelhos.
-
-O renderizador também foi otimizado: limite de aproximadamente **30 quadros por segundo no computador** e **24 no celular**, suspensão de animações ambientais ao jogar, atualizações do relógio menos frequentes e proteção para que erros gráficos isolados não interrompam permanentemente a animação.
-
-Testes de JavaScript em ambiente simulado, executados contra o código publicado no GitHub e a lógica de geração da API, confirmaram desenho e inicialização do laser e de todos os espelhos nas **15 combinações** (5 fases × 3 dificuldades) sem erros de renderização. Esses testes não substituem uma avaliação visual e de desempenho em dispositivos físicos.
+- Espelhos voltaram às duas diagonais: **/** e **\\**. Um clique/toque no espelho ou no botão alterna a orientação.
+- A lógica de colisão e o validador do Supabase usam estados booleanos. A API da função `ligo-api`, versão 5, gera desafios novos com espelhos binários; desafios antigos com ângulos numéricos são convertidos ao carregar.
+- A complexidade dos níveis continua por quantidade de espelhos: Fácil 1/2/2/3/3, Médio 2/3/4/4/5 e Difícil 4/4/5/5/6, com distâncias diferentes entre reflexões.
+- A interface **não redesenha o tabuleiro continuamente**: desenha uma vez quando a fase abre e anima por aproximadamente 220 ms após cada giro; em seguida, para de requisitar quadros.
+- Efeitos ambientais de fundo foram ocultados durante a partida, preservando o visual do menu e dos rankings.
+- Cadastro com nome e sobrenome, partidas separadas por visitante e rankings por dificuldade foram mantidos.
+- Teste simulado: 15 combinações (5 fases × 3 dificuldades), com laser e espelhos carregados, botões funcionais e **nenhum quadro agendado após a animação**. Também foram testados 600 circuitos gerados no backend. Esses testes não substituem testes visuais em navegadores reais, especialmente celulares usados na feira.
 
 ## Conexão Supabase
 - Projeto: **LIGO - Feira de Ciencias**
