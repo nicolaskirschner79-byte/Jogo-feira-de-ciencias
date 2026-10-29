@@ -119,14 +119,23 @@ const store=(()=>{try{const st=window.localStorage;const probe='ligo-storage-che
 
 const API_URL='https://jgjgmbsgkwdimiinhcbk.supabase.co/functions/v1/ligo-api';
 const API_KEY='sb_publishable_LQdCA2VrVac4WSuNzW7-Kg_zEoQJSii';
-function installationToken(){
- let t=store.getItem('ligo_install_token');
- if(!/^[a-f0-9]{64}$/i.test(t||'')){
-  t=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v=>v.toString(16).padStart(2,'0')).join('');
-  store.setItem('ligo_install_token',t);
- }
- return t;
+let playerToken='';
+const PROFILE_KEY='ligo_fair_profiles_v1';
+function profileMap(){try{return JSON.parse(store.getItem(PROFILE_KEY)||'{}')||{}}catch{return {}}}
+function normalizeName(name){return name.normalize('NFC').trim().replace(/\s+/g,' ').toLocaleLowerCase('pt-BR')}
+function installationToken(){return playerToken}
+function createPlayerToken(){return Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v=>v.toString(16).padStart(2,'0')).join('')}
+function preparePlayerToken(name){
+ const profiles=profileMap(),key=normalizeName(name);
+ const oldName=store.getItem('ligo_demo_nickname');
+ const oldToken=store.getItem('ligo_install_token');
+ if(!profiles[key]&&oldName&&normalizeName(oldName)===key&&/^[a-f0-9]{64}$/i.test(oldToken||''))profiles[key]=oldToken;
+ const token=profiles[key]||createPlayerToken();
+ return {token,key,existing:!!profiles[key]};
 }
+function rememberPlayer(name,token){const profiles=profileMap();profiles[normalizeName(name)]=token;store.setItem(PROFILE_KEY,JSON.stringify(profiles))}
+function resetVisitor(){player='';playerToken='';active=null;result=null;mirrors=[];busy=false;visual.stage=0;}
+
 async function api(action,values={}){
  const c=new AbortController(),h=setTimeout(()=>c.abort(),15000);
  try{
@@ -138,26 +147,14 @@ async function api(action,values={}){
 }
 function errorLabel(e){
  const m=String(e?.message||e);
- return ({NOME_JA_UTILIZADO:'Esse apelido já está em uso. Escolha outro.',NOME_INVALIDO:'Use 3 a 18 letras, números ou espaços.',JOGADOR_NAO_ENCONTRADO:'Cadastre seu nome para começar.',LIMITE_TENTATIVAS:'Limite de partidas por hora atingido.',SOLUCAO_INCORRETA:'O servidor não confirmou os espelhos. Tente novamente.',PARTIDA_INVALIDA:'A partida foi encerrada. Comece outra.',Failed_to_fetch:'Sem acesso ao servidor.'})[m]||'Não foi possível acessar o Supabase. Verifique sua conexão.';
+ return ({NOME_JA_UTILIZADO:'Esse apelido pertence a outro cadastro. Escolha outro nome.',NOME_INVALIDO:'Use 3 a 18 letras, números ou espaços.',JOGADOR_NAO_ENCONTRADO:'Digite seu nome para começar.',IDENTIDADE_NAO_CONFERE:'Este nome não pertence ao perfil local selecionado.',LIMITE_TENTATIVAS:'Limite de partidas por hora atingido.',SOLUCAO_INCORRETA:'O servidor não confirmou os espelhos. Tente novamente.',PARTIDA_INVALIDA:'A partida foi encerrada. Comece outra.',Failed_to_fetch:'Sem acesso ao servidor.'})[m]||'Não foi possível acessar o Supabase. Verifique sua conexão.';
 }
 async function refreshRanking(){
  try{board=await api('ranking');rankingError='';}
  catch(e){rankingError=errorLabel(e)}
  if(view==='ranking')render();
 }
-async function restoreAccount(){
- try{
-  const d=await api('profile');
-  if(d.player){
-   player=d.player.nickname;store.setItem('ligo_demo_nickname',player);
-   if(d.run){
-    const r=await api('start');
-    active={id:r.run_id,stage:r.stage,startedAt:Date.parse(r.started_at),levels:Array.from({length:5},(_,i)=>i===r.stage-1?r.puzzle:null)};
-   }
-  }
- }catch{player='';active=null;}
- render();
-}
+// Dispositivo compartilhado: cada visitante precisa informar o nome antes da partida.
 
 const LEVELS=[
  {title:'O Primeiro Feixe',emitter:[0,3],receiver:[10,1],direction:'right',mirrors:[[3,3,false],[3,1,false]],solution:[true,true]},
@@ -250,19 +247,19 @@ function body(){
  if(view==='game')return `<div class="container playing"><div class="play-top"><button class="back-link" data-action="home">← Menu principal</button><div class="play-info"><span class="mode-badge"><span class="signal-dot"></span> RANKING GLOBAL ONLINE</span><span class="player-chip"><span class="user-avatar">${escapeText(player.slice(0,1).toUpperCase())}</span>${escapeText(player)}</span></div></div><div class="stage-topline"><div class="phase-bars">${META.map((s,i)=>`<div class="phase-bar ${i+1<active.stage?'done':i+1===active.stage?'current':''}"><span>${i+1<active.stage?'✓':i+1}</span><small>${['REFLEXÃO 1','REFLEXÃO 2','REFLEXÃO 3','REFLEXÃO 4','REFLEXÃO 5'][i]}</small></div>`).join('')}</div><div class="chrono-box"><small>TEMPO DE MISSÃO</small><div>◷ <span class="timer-value" id="timer">${format(Date.now()-active.startedAt)}</span></div></div></div><section class="game-stage"><div class="stage-heading"><div><div class="eyebrow"><span class="glow-dot"></span> ${String(active.stage).padStart(2,'0')} / REFLEXÃO DOS ESPELHOS</div><h2>${currentLevels()[active.stage-1].title}</h2><p>${META[active.stage-1][1]}</p></div><span class="step-pill">DESAFIO ${active.stage}/5</span></div><div class="phaser-wrap"><canvas id="gameboard" width="1000" height="450" style="display:block;width:100%;height:100%;touch-action:manipulation;cursor:${'pointer'}"></canvas></div><div class="board-bottom"><span>● SISTEMA DE DETECÇÃO • SIMULAÇÃO DIDÁTICA</span><span>LAB // 0${active.stage}.01</span></div><div id="controls"></div><div class="science-note"><span>✦</span><p>${NOTES[active.stage-1]}</p></div><p class="timer-footnote">ⓘ O cronômetro permanece ativo ao retornar para o menu. Os tempos são conferidos pelo servidor antes de entrar no ranking.</p></section></div>`;
   if(view==='ranking'){const data=board.ranking||[];const rows=data.map(r=>`<div class="live-rank-row ${r.player_id===board.me?.player_id?'mine':''}"><strong>#${r.position}</strong><span>${escapeText(r.nickname)}</span><strong>${format(r.best_ms)}</strong></div>`).join('');return `<section class="container inner-page"><div class="eyebrow">♛ CLASSIFICAÇÃO GLOBAL</div><div class="page-header"><div><h1>Hall da <span>descoberta.</span></h1><p>Resultados validados no Supabase. Ranking atualizado automaticamente.</p></div></div><div class="leaderboard-panel"><div class="ranking-top"><div><h2>Ranking dos cientistas</h2><p>${board.me?.position?'Sua posição: #'+board.me.position+' · Melhor tempo: '+format(board.me.best_ms):'Complete as cinco fases para entrar no ranking.'}</p></div><button class="btn btn-secondary" data-action="refresh-ranking">↻ Atualizar</button></div><div class="live-rank-head"><span>POSIÇÃO</span><span>JOGADOR</span><span>TEMPO</span></div><div class="live-rank-list">${rows||`<div class="empty-ranking"><h3>${escapeText(rankingError||'Seja o primeiro a concluir!')}</h3></div>`}</div></div></section>`}
  if(view==='science')return `<section class="container inner-page"><div class="eyebrow">✦ CONHEÇA A PESQUISA</div><div class="page-header"><div><h1>Uma nova forma de <span>ouvir o universo.</span></h1><p>O que lasers, espelhos e padrões de interferência têm a ver com ondas gravitacionais?</p></div></div><div class="science-feature"><div class="science-visual"><div class="science-orb"></div><div class="science-orb-mid"></div><div class="science-orb-inner">${symbol()}</div></div><div class="science-copy"><div class="eyebrow">GABRIELA GONZÁLEZ</div><h2>Da Argentina à descoberta de ondas gravitacionais.</h2><p>Gabriela González é uma física argentina ligada à Louisiana State University e à colaboração científica LIGO. Seu trabalho envolveu a compreensão de ruídos e o aprimoramento dos detectores.</p><p>Os detectores utilizam a interferência de feixes de laser para medir alterações extremamente pequenas nas distâncias percorridas pela luz.</p><a class="text-link" target="_blank" rel="noopener noreferrer" href="https://www.lsu.edu/physics/people/faculty/gonzalez.php">Trajetória na LSU ↗</a></div></div><div class="science-three"><div><span>1916</span><h3>Uma previsão</h3><p>Albert Einstein prevê as ondas gravitacionais.</p></div><div><span>2015</span><h3>Um sinal histórico</h3><p>O LIGO registra a primeira detecção direta em 14 de setembro.</p></div><div><span>2016</span><h3>O anúncio</h3><p>A descoberta foi divulgada em 11 de fevereiro.</p></div></div><div class="science-note large-note">✦ <p><strong>Representação didática:</strong> neste jogo, os espelhos, sinais e controles foram simplificados para favorecer a aprendizagem. O funcionamento do equipamento real é muito mais sofisticado.</p></div><button class="btn btn-primary btn-large science-cta" data-action="play">ENTRAR NO LABORATÓRIO →</button></section>`;
-  if(view==='results')return `<section class="results-page container"><div class="results-sparks">✦ ✧ ✦</div><div class="eyebrow"><span class="glow-dot"></span> SINAL ANALISADO COM SUCESSO</div><h1>Missão <span>concluída!</span></h1><p>Você completou os cinco desafios de reflexão dos lasers.</p><div class="results-card"><span>TEMPO VALIDADO PELO SERVIDOR</span><strong>${format(result?.duration_ms||0)}</strong><div class="results-metrics"><div><span>RESULTADO</span><strong>5/5 fases</strong></div><div><span>SUA POSIÇÃO GLOBAL</span><strong>${result?.position?'#'+result.position:'Não classificado'}</strong></div></div></div><div class="result-actions"><button class="btn btn-primary btn-large" data-action="restart">↻ JOGAR NOVAMENTE</button><button class="btn btn-secondary btn-large" data-action="ranking">VER RANKING</button><button class="btn btn-secondary btn-large" data-action="home">MENU PRINCIPAL</button></div><p class="small-muted">A simulação é didática e não reproduz uma descoberta real.</p></section>`;
+  if(view==='results')return `<section class="results-page container"><div class="results-sparks">✦ ✧ ✦</div><div class="eyebrow"><span class="glow-dot"></span> SINAL ANALISADO COM SUCESSO</div><h1>Missão <span>concluída!</span></h1><p>Você completou os cinco desafios de reflexão dos lasers.</p><div class="results-card"><span>TEMPO VALIDADO PELO SERVIDOR</span><strong>${format(result?.duration_ms||0)}</strong><div class="results-metrics"><div><span>RESULTADO</span><strong>5/5 fases</strong></div><div><span>SUA POSIÇÃO GLOBAL</span><strong>${result?.position?'#'+result.position:'Não classificado'}</strong></div></div></div><div class="result-actions"><button class="btn btn-primary btn-large" data-action="restart">↻ PRÓXIMO JOGADOR</button><button class="btn btn-secondary btn-large" data-action="ranking">VER RANKING</button><button class="btn btn-secondary btn-large" data-action="home">MENU PRINCIPAL</button></div><p class="small-muted">A simulação é didática e não reproduz uma descoberta real.</p></section>`;
  return '';
 }
 function escapeText(t){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render(){app.innerHTML=shell();if(view==='game'){drawLoop();renderControls();}}
 function showModal(kind){modal=kind;let body='';
- if(kind==='register')body=`<span class="modal-icon">⌘</span><div class="eyebrow">IDENTIFICAÇÃO DO PESQUISADOR</div><h2>Como devemos chamar você?</h2><p>Escolha um apelido para esta instalação do jogo. Sem e-mail ou senha.</p><label class="input-label">NOME DO JOGADOR</label><input id="nickname" class="text-input" maxlength="18" placeholder="Ex.: Astro Nauta"/><small class="small-muted">De 3 a 18 letras, números ou espaços.</small><div id="modal-error"></div><button class="btn btn-primary btn-large modal-main-action" data-action="save-player">CONTINUAR →</button>`;
+ if(kind==='register')body=`<span class="modal-icon">⌘</span><div class="eyebrow">IDENTIFICAÇÃO DO PESQUISADOR</div><h2>Como devemos chamar você?</h2><p>Cada visitante digita seu nome antes de jogar. Jogadores que já participaram neste dispositivo podem usar o mesmo nome para conservar seu recorde.</p><label class="input-label">NOME DO JOGADOR</label><input id="nickname" class="text-input" maxlength="18" placeholder="Ex.: Astro Nauta"/><small class="small-muted">De 3 a 18 letras, números ou espaços.</small><div id="modal-error"></div><button class="btn btn-primary btn-large modal-main-action" data-action="save-player">CONTINUAR →</button>`;
  if(kind==='tutorial')body=`<span class="modal-icon">✦</span><div class="eyebrow">ANTES DE COMEÇAR</div><h2>Bem-vindo ao laboratório!</h2><p>Complete cinco fases. Cada fase tem um novo trajeto de reflexos.</p><div class="tutorial-list"><div><span>01</span> Toque nos espelhos do tabuleiro para refletir a luz.</div><div><span>02</span> O laser, os espelhos e o receptor mudam de lugar a cada fase.</div><div><span>03</span> Seu tempo começa ao iniciar e continua até o fim.</div><div><span>04</span> Seu tempo verificado entra automaticamente na classificação global.</div></div><button class="btn btn-primary btn-large modal-main-action" data-action="begin">▶ COMEÇAR MINHA MISSÃO</button>`;
  if(kind==='settings')body=`<span class="modal-icon">⚙</span><div class="eyebrow">SUAS PREFERÊNCIAS</div><h2>Configurações</h2><p>Ajuste o tema e os sons sem perder sua partida.</p><div class="setting-row"><div><strong>☼ Tema da interface</strong><small>Claro ou escuro</small></div><button class="toggle-choice" data-action="theme">${theme==='dark'?'Modo escuro':'Modo claro'} ↔</button></div><div class="setting-row"><div><strong>♫ Efeitos sonoros</strong><small>Áudio mais alto e equilibrado</small></div><button class="toggle-choice" data-action="sound">${sound?'Ativado':'Desativado'} ↔</button></div><button class="btn btn-primary btn-large modal-main-action" data-action="close">SALVAR E FECHAR ✓</button>`;
  modalRoot.innerHTML=`<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true"><button class="modal-close icon-btn" data-action="close" aria-label="Fechar">×</button>${body}</div></div>`;
 }
 function hideModal(){modal='';modalRoot.innerHTML=''}
-async function begin(){if(busy)return;busy=true;hideModal();try{const d=await api('start');active={id:d.run_id,stage:d.stage,startedAt:Date.parse(d.started_at),levels:Array.from({length:5},(_,i)=>i===d.stage-1?d.puzzle:null)};resetStage();view='game';beep(780,'start');render()}catch(e){alert(errorLabel(e));view='home';render()}finally{busy=false}}
+async function begin(){if(busy)return;busy=true;hideModal();try{const d=await api('start',{fresh:true});active={id:d.run_id,stage:d.stage,startedAt:Date.parse(d.started_at),levels:Array.from({length:5},(_,i)=>i===d.stage-1?d.puzzle:null)};resetStage();view='game';beep(780,'start');render()}catch(e){alert(errorLabel(e));view='home';render()}finally{busy=false}}
 function resetStage(){mirrors=currentLevels()[(active?.stage||1)-1].mirrors.map(q=>q[2]);}
 async function advanceStage(){if(busy||!active)return;busy=true;try{const d=await api('submit',{run_id:active.id,states:mirrors});beep(880,'success');if(d.finished){board={ranking:d.ranking||[],me:d.me};result={duration_ms:d.duration_ms,position:d.me?.position};active=null;view='results';render()}else{active.stage=d.stage;active.levels[d.stage-1]=d.puzzle;resetStage();render()}}catch(e){alert(errorLabel(e))}finally{busy=false}}
 function renderControls(){const c=document.getElementById('controls');if(!c||!active)return;const hit=trace(currentLevels()[active.stage-1],mirrors).hit;
@@ -357,14 +354,15 @@ function draw(ctx,t){
  ctx.fillStyle='#b9f6ff';ctx.beginPath();ctx.arc(ex,ey,8+(reduced?0:1.2*Math.sin(t*2.5)),0,Math.PI*2);ctx.fill();
  ctx.restore();
 }
-function go(dest){view=dest;render();if(dest==='ranking')void refreshRanking()}
+function go(dest){if(dest==='home'&&active)resetVisitor();view=dest;render();if(dest==='ranking')void refreshRanking()}
 async function action(type,e){if(type==='mobile-menu'){document.querySelector('.nav-links')?.classList.toggle('open');return;}if(type==='home'||type==='ranking'||type==='science'){hideModal();go(type);return}
- if(type==='play'){if(active){view='game';resetStage();render()}else if(!player)showModal('register');else showModal('tutorial');return}
+ if(type==='play'){resetVisitor();showModal('register');return}
  if(type==='settings'){showModal('settings');return}if(type==='close'){hideModal();return}
  if(type==='theme'){theme=theme==='dark'?'light':'dark';store.setItem('ligo_theme',theme);document.documentElement.dataset.theme=theme;showModal('settings');return}
  if(type==='sound'){sound=!sound;store.setItem('ligo_sound',String(sound));showModal('settings');beep();return}
- if(type==='save-player'){if(busy)return;const el=document.getElementById('nickname');const name=el?.value?.trim().replace(/\s+/g,' ')||'';if(name.length<3||name.length>18||!/^[\p{L}\p{N} ]+$/u.test(name)){document.getElementById('modal-error').textContent='Digite 3 a 18 letras, números ou espaços.';return}busy=true;try{const d=await api('register',{nickname:name});player=d.player.nickname;store.setItem('ligo_demo_nickname',player);showModal('tutorial')}catch(e){const target=document.getElementById('modal-error');if(target)target.textContent=errorLabel(e)}finally{busy=false}return}
- if(type==='begin'||type==='restart'){void begin();return}
+ if(type==='save-player'){if(busy)return;const el=document.getElementById('nickname');const name=el?.value?.trim().replace(/\s+/g,' ')||'';if(name.length<3||name.length>18||!/^[\p{L}\p{N} ]+$/u.test(name)){document.getElementById('modal-error').textContent='Digite 3 a 18 letras, números ou espaços.';return}busy=true;const entry=preparePlayerToken(name);playerToken=entry.token;try{const d=await api('register',{nickname:name});player=d.player.nickname;rememberPlayer(player,entry.token);showModal('tutorial')}catch(e){playerToken='';const target=document.getElementById('modal-error');if(target)target.textContent=errorLabel(e)}finally{busy=false}return}
+ if(type==='begin'){void begin();return}
+ if(type==='restart'){resetVisitor();showModal('register');return}
  if(type==='refresh-ranking'){void refreshRanking();return}
  if(!active)return;
  if(type==='mirror'){const i=+e.target.closest('button').dataset.i;rotateMirror(i);return}
@@ -375,6 +373,6 @@ document.addEventListener('click',e=>{const button=e.target.closest('[data-actio
 setInterval(()=>{if(view==='game'&&active){const timer=document.getElementById('timer');if(timer)timer.textContent=format(Date.now()-active.startedAt)}},80);
 setInterval(()=>{if(view==='ranking')void refreshRanking()},12000);
 render();
-void restoreAccount();
+// Sem restauração automática: cada nova partida solicita identificação.
 
 </script></body></html>
