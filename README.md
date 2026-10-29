@@ -2,6 +2,15 @@
 
 Jogo educativo com cinco circuitos de reflexão por partida, com posições geradas de forma variável.
 
+## Modo feira de ciências (dispositivo compartilhado)
+- Toda vez que alguém clica em **Jogar** ou **Próximo jogador**, a tela solicita um nome, inclusive quando outra pessoa já jogou no mesmo navegador.
+- Cada nome recebe sua própria credencial aleatória local, separando partidas e recordes no Supabase.
+- Se um participante já jogou **no mesmo navegador**, digitar o mesmo nome recupera o perfil e o melhor tempo, mas inicia uma nova tentativa.
+- Nomes já cadastrados em **outro navegador** não podem ser recuperados apenas digitando o apelido, para evitar que outra pessoa se passe pelo participante; nesse caso, será necessário escolher outro apelido.
+- A identificação não é restaurada automaticamente ao abrir a página.
+- Os tokens de identidade são armazenados no navegador do dispositivo da feira; usar um perfil de navegador público implica riscos de acesso local e exige cuidado com limpeza de dados após o evento.
+
+
 ## Conexão Supabase
 - Projeto: **LIGO - Feira de Ciencias**
 - Project ref: `jgjgmbsgkwdimiinhcbk`
@@ -15,7 +24,7 @@ Jogo educativo com cinco circuitos de reflexão por partida, com posições gera
 
 ## Avisos importantes
 - A migração anterior `supabase/migrations/001_ranking.sql` é um **rascunho anterior**, não corresponde ao banco atual e não deve ser reaplicada. O banco foi configurado diretamente via migration do Supabase `ligo_global_ranking_initial`.
-- O serviço aceita um token aleatório salvo na instalação do navegador. Limpar os dados do navegador ou usar outro perfil pode resultar em uma nova identidade; não existe bloqueio infalível por dispositivo.
+- O serviço aceita um token aleatório por perfil de participante, salvo no mesmo navegador. Limpar os dados do navegador ou usar outro perfil pode impedir a recuperação do registro original; não existe bloqueio infalível por dispositivo.
 - Há limite de dez novas partidas por hora por identidade, mas ainda são necessárias proteções adicionais contra automação e cadastros abusivos antes de uma competição pública de grande porte.
 - Circuitos aleatórios podem apresentar dificuldades distintas, então tempos isolados podem não ser perfeitamente comparáveis.
 - A criação do projeto, schema e publicação da Edge Function foram verificadas com as ferramentas Supabase. **Um teste real de ponta a ponta, via navegador público, ainda precisa ser realizado**; o ambiente de execução não alcançou o endpoint HTTP diretamente.
