@@ -137,6 +137,18 @@ html,body,#root,.app-shell{height:100%;height:100dvh;overflow:hidden}
 @media(max-width:430px){.modal:has(.fair-name-fields){padding:15px 14px}.difficulty-choice{min-height:75px}.fair-name-fields{gap:7px}.difficulty-choice strong{font-size:10px}.difficulty-choice small{font-size:9px}.modal:has(.fair-name-fields) .modal-icon{display:none}}
 @media(prefers-reduced-motion: reduce){.difficulty-choice{transition:none}.difficulty-choice:hover{transform:none}}
 
+
+/* Suporte óptico com rotação completa, em passos de 45°. */
+.mirror-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.mirror-turner{display:flex;align-items:center;justify-content:space-between;gap:2px;min-width:0;border:1px solid rgba(98,160,195,.35);background:var(--raised);border-radius:9px;padding:3px 4px}
+.mirror-turn-btn{font-size:17px;line-height:1;border:0;border-radius:7px;background:rgba(34,211,238,.1);color:var(--cyan);min-width:25px;min-height:31px;display:grid;place-items:center;transition:background .2s ease,transform .2s ease}
+.mirror-turn-btn:hover{background:rgba(34,211,238,.25);transform:scale(1.06)}
+.mirror-turn-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
+.mirror-turn-label{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:29px;color:var(--text);font-size:9px;font-weight:700;white-space:nowrap}
+.mirror-turn-label strong{font-variant-numeric:tabular-nums;font-size:11px;color:var(--cyan);line-height:1.1}
+@media(max-width:570px){.mirror-controls{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.mirror-turner{padding:2px;gap:1px}.mirror-turn-btn{min-width:23px;min-height:27px;font-size:15px}.mirror-turn-label{font-size:8px}.mirror-turn-label strong{font-size:10px}}
+@media(max-height:470px) and (min-width:600px){.mirror-controls{grid-template-columns:repeat(6,minmax(0,1fr))}.mirror-turn-btn{min-width:20px;min-height:22px;font-size:13px}.mirror-turn-label strong{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.mirror-turn-btn{transition:none}.mirror-turn-btn:hover{transform:none}}
 </style></head><body><div class="app-shell"><div class="ambient ambient-a"></div><div class="ambient ambient-b"></div><div id="app" style="display:contents"></div><div id="modal-root"></div></div><script>
 /* Jogo conectado ao Supabase, com resultados validados pelo servidor. */
 'use strict';
@@ -313,10 +325,21 @@ function hideModal(){modal='';modalRoot.innerHTML=''}
 async function begin(){if(busy)return;busy=true;hideModal();try{const d=await api('start',{fresh:true,difficulty:selectedDifficulty});active={id:d.run_id,stage:d.stage,difficulty:d.difficulty,startedAt:Date.parse(d.started_at),levels:Array.from({length:5},(_,i)=>i===d.stage-1?d.puzzle:null)};resetStage();view='game';beep(780,'start');render()}catch(e){alert(errorLabel(e));view='home';render()}finally{busy=false}}
 function resetStage(){mirrors=currentLevels()[(active?.stage||1)-1].mirrors.map(q=>initialAngle(q[2]));visual.stage='';}
 async function advanceStage(){if(busy||!active)return;busy=true;try{const d=await api('submit',{run_id:active.id,states:mirrors});beep(880,'success');if(d.finished){board={ranking:d.ranking||[],me:d.me};result={duration_ms:d.duration_ms,position:d.me?.position,difficulty:d.difficulty};rankDifficulty=d.difficulty;active=null;view='results';render()}else{active.stage=d.stage;active.levels[d.stage-1]=d.puzzle;resetStage();render()}}catch(e){alert(errorLabel(e))}finally{busy=false}}
-function renderControls(){const c=document.getElementById('controls');if(!c||!active)return;const hit=trace(currentLevels()[active.stage-1],mirrors).hit;
- const main=`<div class="control-title">◎ ORIENTAÇÃO DOS ESPELHOS</div><p class="small-muted">Toque nos espelhos ou use os botões. Faça o laser atingir o receptor verde.</p><div class="mirror-controls">${mirrors.map((v,i)=>`<button class="mirror-control" aria-label="Girar espelho ${i+1}" data-action="mirror" data-i="${i}">↻ E${i+1} <strong>${v?'/':'\\'}</strong></button>`).join('')}</div>`;
- const side=`<div class="objective-state ${hit?'good':''}"><span>${hit?'✓':'◎'}</span><div><strong>${hit?'Receptor ativado!':'Encontre o caminho'}</strong><small>${hit?'Feixe alinhado: pode avançar.':'Gire os espelhos e acerte o sensor.'}</small></div></div><button class="btn btn-primary" data-action="confirm" ${hit?'':'disabled'}>${active.stage===5?'CONCLUIR MISSÃO':'PRÓXIMA FASE'} →</button>`;
- c.innerHTML=`<div class="control-grid"><div class="control-main">${main}</div><div class="control-action">${side}</div></div>`;
+function renderControls(){
+ const c=document.getElementById('controls');if(!c||!active)return;
+ const route=trace(currentLevels()[active.stage-1],mirrors),hit=route.hit;
+ const items=mirrors.map((v,i)=>'<div class="mirror-turner" aria-label="Espelho '+(i+1)+', '+v+' graus">'+
+ '<button class="mirror-turn-btn" aria-label="Espelho '+(i+1)+', girar 45 graus à esquerda" data-action="mirror" data-i="'+i+'" data-step="-1">↶</button>'+
+ '<span class="mirror-turn-label">E'+(i+1)+'<strong>'+v+'°</strong></span>'+
+ '<button class="mirror-turn-btn" aria-label="Espelho '+(i+1)+', girar 45 graus à direita" data-action="mirror" data-i="'+i+'" data-step="1">↷</button></div>').join('');
+ const main='<div class="control-title">◎ ESPELHOS • ROTAÇÃO DE 360°</div>'+
+ '<p class="small-muted">Arraste o espelho ou use ↶ e ↷ para girar de 45° em 45°. Em posições sem alinhamento o laser para.</p>'+
+ '<div class="mirror-controls">'+items+'</div>';
+ const message=route.blocked?'Espelho desalinhado':hit?'Receptor ativado!':'Encontre o caminho';
+ const hint=route.blocked?'Alinhe o suporte até o feixe refletir.':hit?'Feixe alinhado: pode avançar.':'Gire os espelhos para atingir o receptor.';
+ const side='<div class="objective-state '+(hit?'good':'')+'"><span>'+(hit?'✓':'◎')+'</span><div><strong>'+message+'</strong><small>'+hint+'</small></div></div>'+
+ '<button class="btn btn-primary" data-action="confirm" '+(hit?'':'disabled')+'>'+(active.stage===5?'CONCLUIR MISSÃO':'PRÓXIMA FASE')+' →</button>';
+ c.innerHTML='<div class="control-grid"><div class="control-main">'+main+'</div><div class="control-action">'+side+'</div></div>';
 }
 
 function canvasPoint(event,canvas){const r=canvas.getBoundingClientRect(),aspect=1000/450,ratio=r.width/r.height;
