@@ -149,6 +149,9 @@ html,body,#root,.app-shell{height:100%;height:100dvh;overflow:hidden}
 @media(max-width:570px){.mirror-controls{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.mirror-turner{padding:2px;gap:1px}.mirror-turn-btn{min-width:23px;min-height:27px;font-size:15px}.mirror-turn-label{font-size:8px}.mirror-turn-label strong{font-size:10px}}
 @media(max-height:470px) and (min-width:600px){.mirror-controls{grid-template-columns:repeat(6,minmax(0,1fr))}.mirror-turn-btn{min-width:20px;min-height:22px;font-size:13px}.mirror-turn-label strong{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.mirror-turn-btn{transition:none}.mirror-turn-btn:hover{transform:none}}
+/* Reduz efeitos de fundo enquanto os circuitos exigem respostas rápidas. */
+html[data-page="game"] .ambient{animation-play-state:paused!important}
+html[data-page="game"] .ambient:before,html[data-page="game"] .ambient:after{animation-play-state:paused!important}
 </style></head><body><div class="app-shell"><div class="ambient ambient-a"></div><div class="ambient ambient-b"></div><div id="app" style="display:contents"></div><div id="modal-root"></div></div><script>
 /* Jogo conectado ao Supabase, com resultados validados pelo servidor. */
 'use strict';
@@ -314,7 +317,7 @@ function body(){
  return '';
 }
 function escapeText(t){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function render(){app.innerHTML=shell();if(view==='game'){drawLoop();renderControls();}}
+function render(){document.documentElement.dataset.page=view;app.innerHTML=shell();if(view==='game'){drawLoop();renderControls();}}
 function showModal(kind){modal=kind;let body='';
  if(kind==='register')body="<span class=\"modal-icon\">⌘</span><div class=\"eyebrow\">INSCRIÇÃO DA FEIRA DE CIÊNCIAS</div><h2>Pronto para o desafio?</h2><p>Informe nome e sobrenome e escolha um nível. Cada visitante realiza sua própria partida.</p>\n<div class=\"fair-name-fields\">\n<div><label class=\"input-label\" for=\"first-name\">NOME *</label><input id=\"first-name\" class=\"text-input\" maxlength=\"35\" autocomplete=\"off\" placeholder=\"Ex.: Ana\" required/></div>\n<div><label class=\"input-label\" for=\"last-name\">SOBRENOME *</label><input id=\"last-name\" class=\"text-input\" maxlength=\"45\" autocomplete=\"off\" placeholder=\"Ex.: Silva\" required/></div></div>\n<label class=\"input-label fair-difficulty-label\">SELECIONE A DIFICULDADE *</label>\n<div class=\"difficulty-grid\" role=\"radiogroup\" aria-label=\"Dificuldade da partida\">\n<button type=\"button\" class=\"difficulty-choice selected\" role=\"radio\" aria-checked=\"true\" data-action=\"select-difficulty\" data-level=\"facil\"><span class=\"difficulty-icon\">✧</span><strong>FÁCIL</strong><small>1 a 3 espelhos</small></button>\n<button type=\"button\" class=\"difficulty-choice\" role=\"radio\" aria-checked=\"false\" data-action=\"select-difficulty\" data-level=\"medio\"><span class=\"difficulty-icon\">◎</span><strong>MÉDIO</strong><small>2 a 5 espelhos</small></button>\n<button type=\"button\" class=\"difficulty-choice\" role=\"radio\" aria-checked=\"false\" data-action=\"select-difficulty\" data-level=\"dificil\"><span class=\"difficulty-icon\">✦</span><strong>DIFÍCIL</strong><small>4 a 6 espelhos</small></button>\n</div><small class=\"fair-privacy-note\">Seu nome completo poderá aparecer no ranking da feira. Cada nível tem classificação própria.</small>\n<div id=\"modal-error\" role=\"alert\" aria-live=\"polite\"></div><button class=\"btn btn-primary btn-large modal-main-action\" data-action=\"save-player\">CONTINUAR →</button>";
  if(kind==='tutorial')body=`<span class="modal-icon">✦</span><div class="eyebrow">ANTES DE COMEÇAR</div><h2>Bem-vindo ao laboratório!</h2><p>Nível <strong>${DIFFICULTY_LABELS[selectedDifficulty]}</strong> — cinco fases com trajetos de reflexos diferentes.</p><div class="tutorial-list"><div><span>01</span> Toque nos espelhos do tabuleiro para refletir a luz.</div><div><span>02</span> O laser, os espelhos e o receptor mudam de lugar a cada fase.</div><div><span>03</span> Seu tempo começa ao iniciar e continua até o fim.</div><div><span>04</span> Seu tempo verificado entra automaticamente na classificação global.</div></div><button class="btn btn-primary btn-large modal-main-action" data-action="begin">▶ COMEÇAR MINHA MISSÃO</button>`;
@@ -351,10 +354,12 @@ const prefersReduced=window.matchMedia('(prefers-reduced-motion: reduce)');
 let visual={stage:'',angles:[],beamFrom:null,beamTo:null,beamAt:0,enteredAt:0};
 const ease=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
 function syncVisual(){
- const stage=active?.id+':'+active?.stage;
- if(visual.stage===stage)return;
- const level=currentLevels()[stage-1];
- visual={stage,angles:level?level.mirrors.map((m,i)=>({from:mirrors[i],to:mirrors[i],start:0})):[],beamFrom:null,beamTo:level?trace(level,mirrors):null,beamAt:performance.now()-400,enteredAt:performance.now()};
+ // O identificador da cena serve apenas para detectar mudança.
+ // O índice do circuito é sempre o número da fase menos um.
+ const sceneKey=active?active.id+':'+active.stage:'';
+ if(visual.stage===sceneKey)return;
+ const level=active&&Number.isInteger(active.stage)?currentLevels()[active.stage-1]:null;
+ visual={stage:sceneKey,angles:level?level.mirrors.map((m,i)=>({from:mirrors[i]??initialAngle(m[2]),to:mirrors[i]??initialAngle(m[2]),start:0})):[],beamFrom:null,beamTo:level?trace(level,mirrors):null,beamAt:performance.now()-400,enteredAt:performance.now()};
 }
 function rotateMirror(i,steps=1){
  if(!active||i<0||i>=mirrors.length||!Number.isInteger(steps)||steps===0)return;
@@ -408,8 +413,25 @@ function drawLoop(){
   drag=null;
  });
  canvas.addEventListener('pointercancel',()=>{drag=null});
- const ctx=canvas.getContext('2d');
- function frame(t){if(!canvas.isConnected||view!=='game'||!active)return;draw(ctx,t/1000);animation=requestAnimationFrame(frame)}
+ const ctx=canvas.getContext('2d',{alpha:false,desynchronized:true})||canvas.getContext('2d');
+ if(!ctx)return;
+ // Limitamos redesenhos de 60+ para cerca de 30 FPS no PC e 24 no celular.
+ // O relógio permanece independente dessa taxa.
+ let lastFrame=0,frameErrors=0;
+ const minimumFrameTime=window.matchMedia('(max-width:760px)').matches?1000/24:1000/30;
+ function frame(t){
+  if(!canvas.isConnected||view!=='game'||!active)return;
+  animation=requestAnimationFrame(frame);
+  if(document.hidden||t-lastFrame<minimumFrameTime)return;
+  lastFrame=t;
+  try{
+   draw(ctx,t/1000);
+   frameErrors=0;
+  }catch(err){
+   // Um erro gráfico não deve impedir os próximos quadros nem ocultar o tabuleiro.
+   if(frameErrors++===0)console.error('LIGO: falha ao desenhar o tabuleiro',err);
+  }
+ }
  animation=requestAnimationFrame(frame);
 }
 function line(ctx,coords,width,color){ctx.beginPath();coords.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.lineWidth=width;ctx.strokeStyle=color;ctx.stroke();}
@@ -498,7 +520,7 @@ async function action(type,e){if(type==='mobile-menu'){document.querySelector('.
 
 }
 document.addEventListener('click',e=>{const button=e.target.closest('[data-action]');if(button)action(button.dataset.action,e)});
-setInterval(()=>{if(view==='game'&&active){const timer=document.getElementById('timer');if(timer)timer.textContent=format(Date.now()-active.startedAt)}},80);
+setInterval(()=>{if(view==='game'&&active){const timer=document.getElementById('timer');if(timer)timer.textContent=format(Date.now()-active.startedAt)}},160);
 setInterval(()=>{if(view==='ranking')void refreshRanking()},12000);
 render();
 // Sem restauração automática: cada nova partida solicita identificação.
