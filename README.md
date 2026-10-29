@@ -1,5 +1,30 @@
 # LIGO — O Desafio dos Lasers
 
+## A Ciência — Gabriela González e LIGO
+
+A seção **A ciência** do `index.html` foi recriada em um formato editorial responsivo com história de Gabriela González, explicação do projeto LIGO e experiência interativa de interferometria.
+
+A experiência inclui:
+- Retratos de Gabriela González de fontes oficiais da Louisiana State University (LSU), incluindo fotografia em ambiente de pesquisa;
+- Vista aérea do observatório LIGO Livingston (imagem oficial disponibilizada pelo LIGO Laboratory);
+- Biografia resumida (Córdoba, Universidade Nacional de Córdoba, doutorado na Syracuse, atuação na LSU e porta-voz da LIGO Scientific Collaboration);
+- Linha do tempo sobre Einstein, fundação do LIGO e a primeira detecção de ondas gravitacionais;
+- Dois observatórios e braços de 4 km; explicação dos lasers, espelhos e padrões de interferência;
+- Diagrama vetorial de três etapas, controlado por clique, **sem renderização contínua**, com explicação acessível e a ressalva de que é uma representação educativa;
+- Links de referência e créditos das imagens.
+
+**Desempenho:** as fotos secundárias usam carregamento diferido (`loading=lazy`) e decodificação assíncrona. O diagrama só altera o estado quando o visitante clica nos controles. **A rolagem vertical foi habilitada apenas para a página de ciência**, mantendo a área do jogo no layout de uma tela.
+
+**Fontes:**
+- [LSU — Gabriela González](https://www.lsu.edu/physics/people/faculty/gonzalez.php)
+- [Página acadêmica de Gabriela González](https://www.phys.lsu.edu/faculty/gonzalez/)
+- [LIGO Laboratory — What is LIGO?](https://www.ligo.caltech.edu/page/what-is-ligo)
+- [LIGO Laboratory — Timeline](https://www.ligo.caltech.edu/page/timeline)
+- [LIGO Laboratory — fotografia aérea](https://dcc.ligo.org/LIGO-G0900706/public)
+
+**Verificação:** HTML/JavaScript compilado em teste estático; seção renderizada em simulação de DOM com três controles e quatro imagens. Ainda não foi realizado um teste visual completo em dispositivos físicos.
+
+
 Jogo educativo com cinco circuitos de reflexão por partida, com posições geradas de forma variável.
 
 ## Modo feira de ciências (dispositivo compartilhado)
