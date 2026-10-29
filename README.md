@@ -1,5 +1,18 @@
 # LIGO — O Desafio dos Lasers
 
+## Navegação de retorno (29/10/2026)
+
+O usuário pode retornar usando botões explícitos, sem depender do botão Voltar do navegador:
+
+- Na página **A ciência**, uma barra compacta e fixa durante a leitura oferece **Voltar à seção anterior** e **Início da ciência**.
+- Os botões **Explorar a história** e **Entender o LIGO** registram a posição de rolagem anterior e levam ao conteúdo solicitado. O botão Voltar retorna precisamente à posição anterior.
+- Após uma rolagem manual, Voltar primeiro retorna ao topo. No topo, Voltar abre a página visitada antes.
+- Ranking, resultados e outras páginas internas exibem **← Voltar** no cabeçalho; o final da seção Ciência tem controles adicionais.
+- A navegação conserva o histórico de até 20 páginas e 15 saltos entre seções em memória, sem armazenamento de dados pessoais.
+- Os botões funcionam com teclado e se adaptam à largura da tela. Animação de rolagem respeita a preferência por movimento reduzido.
+
+O sistema de fases, os tempos e o ranking não foram modificados por esta melhoria. Navegação em JavaScript validada com 10 testes simulados de histórico, salto e retorno, sem falhas. A validação visual em navegador real ainda está pendente.
+
 ## A Ciência — Gabriela González e LIGO
 
 A seção **A ciência** do `index.html` foi recriada em um formato editorial responsivo com história de Gabriela González, explicação do projeto LIGO e experiência interativa de interferometria.
