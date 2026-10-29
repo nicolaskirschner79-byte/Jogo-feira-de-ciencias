@@ -35,18 +35,20 @@ function trace(p,states){
 function generate(stage,seed,difficulty){
  if(!isDifficulty(difficulty)||stage<1||stage>5)throw Error('DIFFICULTY_INVALID');
  const mirrorCounts={
-  facil:[1,2,2,3,3],
-  medio:[2,3,4,4,5],
-  dificil:[4,4,5,5,6]
+  facil:[2,3,3,4,5],
+  medio:[4,5,6,7,8],
+  dificil:[6,7,8,9,10]
  };
  const rng=rand(seed),step=[[1,0],[0,1],[-1,0],[0,-1]],dirs=['right','down','left','up'],count=mirrorCounts[difficulty][stage-1];
  // Duas posições ópticas por espelho, independentemente da dificuldade.
- const minimumSegment=difficulty==='facil'?3:difficulty==='medio'?2:1;
+ // Dificuldade aumenta com curvas próximas e várias posições inicialmente incorretas.
+ const minimumSegment=difficulty==='facil'?2:1;
+ const minWrong=difficulty==='facil'?Math.max(1,Math.floor(count*.4)):difficulty==='medio'?Math.ceil(count*.5):Math.ceil(count*.6);
  for(let attempt=0;attempt<85000;attempt++){
   let x=1+Math.floor(rng()*9),y=1+Math.floor(rng()*5),dir=Math.floor(rng()*4);
   const start=[x,y],initial=dir,seen=new Set([x+','+y]),mirrors=[],solution=[];let valid=true;
   for(let m=0;m<count;m++){
-   const n=minimumSegment+Math.floor(rng()*3),[dx,dy]=step[dir];
+   const n=minimumSegment+Math.floor(rng()*(difficulty==='facil'?3:2)),[dx,dy]=step[dir];
    for(let j=0;j<n;j++){x+=dx;y+=dy;const k=x+','+y;if(x<0||x>10||y<0||y>6||seen.has(k)){valid=false;break}seen.add(k)}
    if(!valid)break;
    const next=(dir+(rng()<.5?1:3))%4;
@@ -59,8 +61,9 @@ function generate(stage,seed,difficulty){
   if(!valid)continue;
   const puzzle={title:'Circuito '+stage,emitter:start,receiver:[x,y],direction:dirs[initial],mirrors};
   let wins=0;
-  for(let mask=0;mask<(1<<count);mask++)if(trace(puzzle,mirrors.map((_,i)=>Boolean(mask&(1<<i)))))wins++;
-  if(wins===1&&!mirrors.every((m,i)=>m[2]===solution[i]))return {puzzle,solution};
+  for(let mask=0;mask<(1<<count)&&wins<=1;mask++)if(trace(puzzle,mirrors.map((_,i)=>Boolean(mask&(1<<i)))))wins++;
+  const mismatch=mirrors.reduce((n,m,i)=>n+Number(m[2]!==solution[i]),0);
+  if(wins===1&&mismatch>=minWrong)return {puzzle,solution};
  }
  throw Error('GENERATOR_FAILED');
 }
@@ -156,7 +159,7 @@ Deno.serve(async req=>{
   if(action==='profile')return reply({player,run:await getRun(player.id)});
   if(action==='start')return reply(await start(player,data.fresh===true,data.difficulty));
   if(action==='submit'){
-   if(!/^[0-9a-f-]{36}$/i.test(String(data.run_id))||!Array.isArray(data.states)||data.states.length>8)
+   if(!/^[0-9a-f-]{36}$/i.test(String(data.run_id))||!Array.isArray(data.states)||data.states.length>12)
      return reply({error:'DADOS_INVALIDOS'},400);
    // O suporte pode dar uma volta completa; as diagonais válidas retornam
    // aos dois eixos ópticos equivalentes: 0º/180º e 90º/270º.
