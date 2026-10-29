@@ -36,20 +36,22 @@ function generate(stage,seed,difficulty){
  if(!isDifficulty(difficulty)||stage<1||stage>5)throw Error('DIFFICULTY_INVALID');
  const mirrorCounts={
   facil:[1,2,2,3,3],
-  medio:[2,3,3,4,4],
-  dificil:[3,4,4,5,5]
+  medio:[2,3,4,4,5],
+  dificil:[4,4,5,5,6]
  };
  const rng=rand(seed),step=[[1,0],[0,1],[-1,0],[0,-1]],dirs=['right','down','left','up'],count=mirrorCounts[difficulty][stage-1];
+ const initialAngles={facil:[0,90],medio:[0,45,90,135,180,270],dificil:[0,45,90,135,180,225,270,315]}[difficulty];
+ const minimumSegment=difficulty==='facil'?3:difficulty==='medio'?2:1;
  for(let attempt=0;attempt<85000;attempt++){
   let x=1+Math.floor(rng()*9),y=1+Math.floor(rng()*5),dir=Math.floor(rng()*4);
   const start=[x,y],initial=dir,seen=new Set([x+','+y]),mirrors=[],solution=[];let valid=true;
   for(let m=0;m<count;m++){
-   const n=2+Math.floor(rng()*3),[dx,dy]=step[dir];
+   const n=minimumSegment+Math.floor(rng()*3),[dx,dy]=step[dir];
    for(let j=0;j<n;j++){x+=dx;y+=dy;const k=x+','+y;if(x<0||x>10||y<0||y>6||seen.has(k)){valid=false;break}seen.add(k)}
    if(!valid)break;
    const next=(dir+(rng()<.5?1:3))%4;
    const slash=step[next][0]===-step[dir][1]&&step[next][1]===-step[dir][0];
-   mirrors.push([x,y,rng()<.5]);solution.push(slash);dir=next;
+   mirrors.push([x,y,initialAngles[Math.floor(rng()*initialAngles.length)]]);solution.push(slash);dir=next;
   }
   if(!valid)continue;
   const n=1+Math.floor(rng()*3),[dx,dy]=step[dir];
@@ -58,7 +60,7 @@ function generate(stage,seed,difficulty){
   const puzzle={title:'Circuito '+stage,emitter:start,receiver:[x,y],direction:dirs[initial],mirrors};
   let wins=0;
   for(let mask=0;mask<(1<<count);mask++)if(trace(puzzle,mirrors.map((_,i)=>Boolean(mask&(1<<i)))))wins++;
-  if(wins===1&&!mirrors.every((m,i)=>m[2]===solution[i]))return {puzzle,solution};
+  if(wins===1&&!mirrors.every((m,i)=>m[2]%90===0 && (m[2]%180===90)===solution[i]))return {puzzle,solution};
  }
  throw Error('GENERATOR_FAILED');
 }
@@ -150,10 +152,20 @@ Deno.serve(async req=>{
   if(action==='profile')return reply({player,run:await getRun(player.id)});
   if(action==='start')return reply(await start(player,data.fresh===true,data.difficulty));
   if(action==='submit'){
-   if(!/^[0-9a-f-]{36}$/i.test(String(data.run_id))||!Array.isArray(data.states)||data.states.length>5||data.states.some(s=>typeof s!=='boolean'))return reply({error:'DADOS_INVALIDOS'},400);
+   if(!/^[0-9a-f-]{36}$/i.test(String(data.run_id))||!Array.isArray(data.states)||data.states.length>8)
+     return reply({error:'DADOS_INVALIDOS'},400);
+   // O suporte pode dar uma volta completa; as diagonais válidas retornam
+   // aos dois eixos ópticos equivalentes: 0º/180º e 90º/270º.
+   const normalized=data.states.map(angle=>{
+     if(typeof angle==='boolean')return angle; // compatibilidade com clientes anteriores
+     if(typeof angle!=='number'||!Number.isInteger(angle)||angle<0||angle>=360||angle%45!==0)return null;
+     if(angle%90!==0)return null; // a 45º/135º o laser não está alinhado à grade
+     return angle%180===90;
+   });
+   if(normalized.includes(null))return reply({error:'SOLUCAO_INCORRETA'},400);
    const initial=await getRun(player.id,data.run_id);
    if(!initial||!isDifficulty(initial.difficulty))return reply({error:'PARTIDA_INVALIDA'},400);
-   const out=await db('rpc/ligo_submit_stage',{method:'POST',body:{p_run_id:data.run_id,p_player_id:player.id,p_states:data.states}});
+   const out=await db('rpc/ligo_submit_stage',{method:'POST',body:{p_run_id:data.run_id,p_player_id:player.id,p_states:normalized}});
    if(!out?.ok)return reply({error:out?.error||'SOLUCAO_INVALIDA'},400);
    if(out.finished){return reply({finished:true,duration_ms:out.duration_ms,...await rank(player,initial.difficulty)})}
    const run=await getRun(player.id,data.run_id);
