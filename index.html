@@ -138,20 +138,12 @@ html,body,#root,.app-shell{height:100%;height:100dvh;overflow:hidden}
 @media(prefers-reduced-motion: reduce){.difficulty-choice{transition:none}.difficulty-choice:hover{transform:none}}
 
 
-/* Suporte óptico com rotação completa, em passos de 45°. */
-.mirror-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
-.mirror-turner{display:flex;align-items:center;justify-content:space-between;gap:2px;min-width:0;border:1px solid rgba(98,160,195,.35);background:var(--raised);border-radius:9px;padding:3px 4px}
-.mirror-turn-btn{font-size:17px;line-height:1;border:0;border-radius:7px;background:rgba(34,211,238,.1);color:var(--cyan);min-width:25px;min-height:31px;display:grid;place-items:center;transition:background .2s ease,transform .2s ease}
-.mirror-turn-btn:hover{background:rgba(34,211,238,.25);transform:scale(1.06)}
-.mirror-turn-btn:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
-.mirror-turn-label{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:29px;color:var(--text);font-size:9px;font-weight:700;white-space:nowrap}
-.mirror-turn-label strong{font-variant-numeric:tabular-nums;font-size:11px;color:var(--cyan);line-height:1.1}
-@media(max-width:570px){.mirror-controls{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.mirror-turner{padding:2px;gap:1px}.mirror-turn-btn{min-width:23px;min-height:27px;font-size:15px}.mirror-turn-label{font-size:8px}.mirror-turn-label strong{font-size:10px}}
-@media(max-height:470px) and (min-width:600px){.mirror-controls{grid-template-columns:repeat(6,minmax(0,1fr))}.mirror-turn-btn{min-width:20px;min-height:22px;font-size:13px}.mirror-turn-label strong{font-size:9px}}
-@media(prefers-reduced-motion:reduce){.mirror-turn-btn{transition:none}.mirror-turn-btn:hover{transform:none}}
 /* Reduz efeitos de fundo enquanto os circuitos exigem respostas rápidas. */
-html[data-page="game"] .ambient{animation-play-state:paused!important}
+html[data-page="game"] .ambient{display:none!important}
 html[data-page="game"] .ambient:before,html[data-page="game"] .ambient:after{animation-play-state:paused!important}
+html[data-page="game"] .phaser-wrap{box-shadow:none}
+html[data-page="game"] .game-stage{animation:none}
+html[data-page="game"] .play-top,html[data-page="game"] .game-stage{will-change:auto}
 </style></head><body><div class="app-shell"><div class="ambient ambient-a"></div><div class="ambient ambient-b"></div><div id="app" style="display:contents"></div><div id="modal-root"></div></div><script>
 /* Jogo conectado ao Supabase, com resultados validados pelo servidor. */
 'use strict';
@@ -252,24 +244,19 @@ function freshLevels(){return Array.from({length:5},(_,i)=>createPuzzle(i+1,cryp
 function currentLevels(){return active?.levels?.length===5?active.levels.map((p,i)=>p||LEVELS[i]):LEVELS}
 
 function format(ms){let m=Math.max(0,Math.floor(ms));return String(Math.floor(m/60000)).padStart(2,'0')+':'+String(Math.floor(m/1000)%60).padStart(2,'0')+'.'+String(m%1000).padStart(3,'0');}
-function normalizedAngle(v){return ((v%360)+360)%360}
-function initialAngle(v){return typeof v==='number'?normalizedAngle(v):v===true?90:0}
+function initialAngle(value){return value===true?90:0}
 function trace(level,states){
  let [px,py]=level.emitter,[dx,dy]=({right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]})[level.direction];
  const points=[[px,py]],seen=new Set();
  for(let i=0;i<95;i++){
-  if(px===level.receiver[0]&&py===level.receiver[1])return {points,hit:true,blocked:false};
-  const idx=level.mirrors.findIndex(q=>q[0]===px&&q[1]===py);
-  if(idx!==-1){
-   const angle=initialAngle(states[idx]);
-   if(angle%90!==0)return {points,hit:false,blocked:true};
-   [dx,dy]=angle%180===90?[-dy,-dx]:[dy,dx];
-  }
-  const k=[px,py,dx,dy].join(':');if(seen.has(k))break;seen.add(k);
+  if(px===level.receiver[0]&&py===level.receiver[1])return {points,hit:true};
+  const idx=level.mirrors.findIndex(m=>m[0]===px&&m[1]===py);
+  if(idx!==-1)[dx,dy]=states[idx]?[-dy,-dx]:[dy,dx];
+  const key=[px,py,dx,dy].join(':');if(seen.has(key))break;seen.add(key);
   px+=dx;py+=dy;points.push([px,py]);
   if(px<0||px>10||py<0||py>6)break;
  }
- return {points,hit:false,blocked:false};
+ return {points,hit:false};
 }
 // Sintetizador reutilizável: efeitos mais presentes, sem picos agressivos ou cortes abruptos.
 let audioEngine=null;
@@ -317,7 +304,7 @@ function body(){
  return '';
 }
 function escapeText(t){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function render(){document.documentElement.dataset.page=view;app.innerHTML=shell();if(view==='game'){drawLoop();renderControls();}}
+function render(){if(view!=='game')cancelAnimationFrame(animation);document.documentElement.dataset.page=view;app.innerHTML=shell();if(view==='game'){drawLoop();renderControls();}}
 function showModal(kind){modal=kind;let body='';
  if(kind==='register')body="<span class=\"modal-icon\">⌘</span><div class=\"eyebrow\">INSCRIÇÃO DA FEIRA DE CIÊNCIAS</div><h2>Pronto para o desafio?</h2><p>Informe nome e sobrenome e escolha um nível. Cada visitante realiza sua própria partida.</p>\n<div class=\"fair-name-fields\">\n<div><label class=\"input-label\" for=\"first-name\">NOME *</label><input id=\"first-name\" class=\"text-input\" maxlength=\"35\" autocomplete=\"off\" placeholder=\"Ex.: Ana\" required/></div>\n<div><label class=\"input-label\" for=\"last-name\">SOBRENOME *</label><input id=\"last-name\" class=\"text-input\" maxlength=\"45\" autocomplete=\"off\" placeholder=\"Ex.: Silva\" required/></div></div>\n<label class=\"input-label fair-difficulty-label\">SELECIONE A DIFICULDADE *</label>\n<div class=\"difficulty-grid\" role=\"radiogroup\" aria-label=\"Dificuldade da partida\">\n<button type=\"button\" class=\"difficulty-choice selected\" role=\"radio\" aria-checked=\"true\" data-action=\"select-difficulty\" data-level=\"facil\"><span class=\"difficulty-icon\">✧</span><strong>FÁCIL</strong><small>1 a 3 espelhos</small></button>\n<button type=\"button\" class=\"difficulty-choice\" role=\"radio\" aria-checked=\"false\" data-action=\"select-difficulty\" data-level=\"medio\"><span class=\"difficulty-icon\">◎</span><strong>MÉDIO</strong><small>2 a 5 espelhos</small></button>\n<button type=\"button\" class=\"difficulty-choice\" role=\"radio\" aria-checked=\"false\" data-action=\"select-difficulty\" data-level=\"dificil\"><span class=\"difficulty-icon\">✦</span><strong>DIFÍCIL</strong><small>4 a 6 espelhos</small></button>\n</div><small class=\"fair-privacy-note\">Seu nome completo poderá aparecer no ranking da feira. Cada nível tem classificação própria.</small>\n<div id=\"modal-error\" role=\"alert\" aria-live=\"polite\"></div><button class=\"btn btn-primary btn-large modal-main-action\" data-action=\"save-player\">CONTINUAR →</button>";
  if(kind==='tutorial')body=`<span class="modal-icon">✦</span><div class="eyebrow">ANTES DE COMEÇAR</div><h2>Bem-vindo ao laboratório!</h2><p>Nível <strong>${DIFFICULTY_LABELS[selectedDifficulty]}</strong> — cinco fases com trajetos de reflexos diferentes.</p><div class="tutorial-list"><div><span>01</span> Toque nos espelhos do tabuleiro para refletir a luz.</div><div><span>02</span> O laser, os espelhos e o receptor mudam de lugar a cada fase.</div><div><span>03</span> Seu tempo começa ao iniciar e continua até o fim.</div><div><span>04</span> Seu tempo verificado entra automaticamente na classificação global.</div></div><button class="btn btn-primary btn-large modal-main-action" data-action="begin">▶ COMEÇAR MINHA MISSÃO</button>`;
@@ -326,25 +313,22 @@ function showModal(kind){modal=kind;let body='';
 }
 function hideModal(){modal='';modalRoot.innerHTML=''}
 async function begin(){if(busy)return;busy=true;hideModal();try{const d=await api('start',{fresh:true,difficulty:selectedDifficulty});active={id:d.run_id,stage:d.stage,difficulty:d.difficulty,startedAt:Date.parse(d.started_at),levels:Array.from({length:5},(_,i)=>i===d.stage-1?d.puzzle:null)};resetStage();view='game';beep(780,'start');render()}catch(e){alert(errorLabel(e));view='home';render()}finally{busy=false}}
-function resetStage(){mirrors=currentLevels()[(active?.stage||1)-1].mirrors.map(q=>initialAngle(q[2]));visual.stage='';}
+function resetStage(){mirrors=currentLevels()[(active?.stage||1)-1].mirrors.map(q=>typeof q[2]==='boolean'?q[2]:Number(q[2])%180===90);visual.stage='';}
 async function advanceStage(){if(busy||!active)return;busy=true;try{const d=await api('submit',{run_id:active.id,states:mirrors});beep(880,'success');if(d.finished){board={ranking:d.ranking||[],me:d.me};result={duration_ms:d.duration_ms,position:d.me?.position,difficulty:d.difficulty};rankDifficulty=d.difficulty;active=null;view='results';render()}else{active.stage=d.stage;active.levels[d.stage-1]=d.puzzle;resetStage();render()}}catch(e){alert(errorLabel(e))}finally{busy=false}}
 function renderControls(){
- const c=document.getElementById('controls');if(!c||!active)return;
- const route=trace(currentLevels()[active.stage-1],mirrors),hit=route.hit;
- const items=mirrors.map((v,i)=>'<div class="mirror-turner" aria-label="Espelho '+(i+1)+', '+v+' graus">'+
- '<button class="mirror-turn-btn" aria-label="Espelho '+(i+1)+', girar 45 graus à esquerda" data-action="mirror" data-i="'+i+'" data-step="-1">↶</button>'+
- '<span class="mirror-turn-label">E'+(i+1)+'<strong>'+v+'°</strong></span>'+
- '<button class="mirror-turn-btn" aria-label="Espelho '+(i+1)+', girar 45 graus à direita" data-action="mirror" data-i="'+i+'" data-step="1">↷</button></div>').join('');
- const main='<div class="control-title">◎ ESPELHOS • ROTAÇÃO DE 360°</div>'+
- '<p class="small-muted">Arraste o espelho ou use ↶ e ↷ para girar de 45° em 45°. Em posições sem alinhamento o laser para.</p>'+
- '<div class="mirror-controls">'+items+'</div>';
- const message=route.blocked?'Espelho desalinhado':hit?'Receptor ativado!':'Encontre o caminho';
- const hint=route.blocked?'Alinhe o suporte até o feixe refletir.':hit?'Feixe alinhado: pode avançar.':'Gire os espelhos para atingir o receptor.';
- const side='<div class="objective-state '+(hit?'good':'')+'"><span>'+(hit?'✓':'◎')+'</span><div><strong>'+message+'</strong><small>'+hint+'</small></div></div>'+
- '<button class="btn btn-primary" data-action="confirm" '+(hit?'':'disabled')+'>'+(active.stage===5?'CONCLUIR MISSÃO':'PRÓXIMA FASE')+' →</button>';
- c.innerHTML='<div class="control-grid"><div class="control-main">'+main+'</div><div class="control-action">'+side+'</div></div>';
+ const container=document.getElementById('controls');if(!container||!active)return;
+ const hit=trace(currentLevels()[active.stage-1],mirrors).hit;
+ const buttons=mirrors.map((value,i)=>'<button class="mirror-control" data-action="mirror" data-i="'+i+'" aria-label="Girar espelho '+(i+1)+'">↻ E'+(i+1)+' <strong>'+(value?'/':'\\')+'</strong></button>').join('');
+ const main='<div class="control-title">◎ ORIENTAÇÃO DOS ESPELHOS</div>'+
+  '<p class="small-muted">Toque no espelho ou no botão para alternar entre as duas diagonais.</p>'+
+  '<div class="mirror-controls">'+buttons+'</div>';
+ const side='<div class="objective-state '+(hit?'good':'')+'"><span>'+(hit?'✓':'◎')+'</span>'+
+  '<div><strong>'+(hit?'Receptor ativado!':'Encontre o caminho')+'</strong>'+
+  '<small>'+(hit?'Feixe alinhado: pode avançar.':'Gire os espelhos para atingir o receptor.')+'</small></div></div>'+
+  '<button class="btn btn-primary" data-action="confirm" '+(hit?'':'disabled')+'>'+
+  (active.stage===5?'CONCLUIR MISSÃO':'PRÓXIMA FASE')+' →</button>';
+ container.innerHTML='<div class="control-grid"><div class="control-main">'+main+'</div><div class="control-action">'+side+'</div></div>';
 }
-
 function canvasPoint(event,canvas){const r=canvas.getBoundingClientRect(),aspect=1000/450,ratio=r.width/r.height;
  const w=ratio>aspect?r.height*aspect:r.width,h=ratio>aspect?r.height:r.width/aspect;
  const left=r.left+(r.width-w)/2,top=r.top+(r.height-h)/2;
@@ -354,86 +338,59 @@ const prefersReduced=window.matchMedia('(prefers-reduced-motion: reduce)');
 let visual={stage:'',angles:[],beamFrom:null,beamTo:null,beamAt:0,enteredAt:0};
 const ease=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
 function syncVisual(){
- // O identificador da cena serve apenas para detectar mudança.
- // O índice do circuito é sempre o número da fase menos um.
- const sceneKey=active?active.id+':'+active.stage:'';
- if(visual.stage===sceneKey)return;
+ const key=active?active.id+':'+active.stage:'';
+ if(visual.stage===key)return;
  const level=active&&Number.isInteger(active.stage)?currentLevels()[active.stage-1]:null;
- visual={stage:sceneKey,angles:level?level.mirrors.map((m,i)=>({from:mirrors[i]??initialAngle(m[2]),to:mirrors[i]??initialAngle(m[2]),start:0})):[],beamFrom:null,beamTo:level?trace(level,mirrors):null,beamAt:performance.now()-400,enteredAt:performance.now()};
+ visual={
+  stage:key,
+  angles:level?level.mirrors.map((m,i)=>({from:initialAngle(mirrors[i]),to:initialAngle(mirrors[i]),start:0})):[],
+  beamFrom:null,beamTo:level?trace(level,mirrors):null,
+  beamAt:0,enteredAt:0
+ };
 }
-function rotateMirror(i,steps=1){
- if(!active||i<0||i>=mirrors.length||!Number.isInteger(steps)||steps===0)return;
+let animation=0,animDeadline=0,boardCtx=null,boardCanvas=null;
+function requestBoardFrame(duration=0){
+ if(view!=='game'||!active||!boardCanvas?.isConnected)return;
+ if(!prefersReduced.matches&&duration>0)animDeadline=Math.max(animDeadline,performance.now()+duration);
+ if(!animation)animation=requestAnimationFrame(paintBoard);
+}
+function paintBoard(t){
+ animation=0;
+ if(view!=='game'||!active||!boardCanvas?.isConnected||document.hidden)return;
+ try{draw(boardCtx,t/1000)}
+ catch(err){console.error('Falha ao desenhar o tabuleiro LIGO',err);return}
+ if(t<animDeadline&&!prefersReduced.matches)animation=requestAnimationFrame(paintBoard);
+}
+function rotateMirror(i){
+ if(!active||i<0||i>=mirrors.length)return;
  syncVisual();
- const now=performance.now(),a=visual.angles[i],progress=prefersReduced.matches?1:ease((now-a.start)/300);
- const current=a.from+(a.to-a.from)*progress;
+ const now=performance.now(),angle=visual.angles[i];
+ const current=prefersReduced.matches?angle.to:angle.from+(angle.to-angle.from)*ease((now-angle.start)/180);
  visual.beamFrom=visual.beamTo;
- mirrors[i]=normalizedAngle(mirrors[i]+steps*45);
- visual.angles[i]={from:current,to:a.to+steps*45,start:now};
+ mirrors[i]=!mirrors[i];
+ visual.angles[i]={from:current,to:initialAngle(mirrors[i]),start:now};
  visual.beamTo=trace(currentLevels()[active.stage-1],mirrors);
  visual.beamAt=now;
- beep(540,'mirror');renderControls();
+ beep(540,'mirror');
+ renderControls();
+ requestBoardFrame(220);
 }
-function setMirrorAngle(i,desired){
- if(!active||!Number.isInteger(desired)||desired%45!==0)return;
- const current=normalizedAngle(mirrors[i]),target=normalizedAngle(desired);
- if(current===target)return;
- let diff=((target-current+540)%360)-180;if(diff===-180)diff=180;
- rotateMirror(i,diff/45);
-}
-let animation=0;
 function drawLoop(){
  cancelAnimationFrame(animation);
+ animation=0;animDeadline=0;
  const canvas=document.getElementById('gameboard');if(!canvas||!active)return;
- syncVisual();let drag=null;
- const center=m=>({x:180+m[0]*61,y:43+m[1]*61});
- canvas.style.touchAction='none';
+ boardCanvas=canvas;boardCtx=canvas.getContext('2d',{alpha:false})||canvas.getContext('2d');
+ if(!boardCtx)return;
+ syncVisual();
+ canvas.style.touchAction='manipulation';
  canvas.addEventListener('pointerdown',event=>{
   const pt=canvasPoint(event,canvas),list=currentLevels()[active.stage-1].mirrors;
-  const i=list.findIndex(m=>{const q=center(m);return Math.hypot(pt.x-q.x,pt.y-q.y)<34});
-  if(i<0)return;
-  event.preventDefault();const pivot=center(list[i]);
-  drag={i,pivot,origin:Math.atan2(pt.y-pivot.y,pt.x-pivot.x),previous:null,accumulated:0,start:mirrors[i],pt,moved:false};
-  if(canvas.setPointerCapture)canvas.setPointerCapture(event.pointerId);
+  const i=list.findIndex(m=>Math.hypot(pt.x-(180+m[0]*61),pt.y-(43+m[1]*61))<34);
+  if(i>=0){event.preventDefault();rotateMirror(i)}
  });
- canvas.addEventListener('pointermove',event=>{
-  if(!drag)return;const pt=canvasPoint(event,canvas);
-  if(!drag.moved&&Math.hypot(pt.x-drag.pt.x,pt.y-drag.pt.y)>11)drag.moved=true;
-  if(!drag.moved)return;event.preventDefault();
-  const angle=Math.atan2(pt.y-drag.pivot.y,pt.x-drag.pivot.x);
-  if(drag.previous===null)drag.previous=drag.origin;
-  let delta=angle-drag.previous;
-  if(delta>Math.PI)delta-=2*Math.PI;
-  if(delta<-Math.PI)delta+=2*Math.PI;
-  drag.accumulated+=delta;drag.previous=angle;
-  setMirrorAngle(drag.i,drag.start+Math.round(drag.accumulated*180/Math.PI/45)*45);
- });
- canvas.addEventListener('pointerup',event=>{
-  if(!drag)return;event.preventDefault();
-  if(!drag.moved)rotateMirror(drag.i,1);
-  drag=null;
- });
- canvas.addEventListener('pointercancel',()=>{drag=null});
- const ctx=canvas.getContext('2d',{alpha:false,desynchronized:true})||canvas.getContext('2d');
- if(!ctx)return;
- // Limitamos redesenhos de 60+ para cerca de 30 FPS no PC e 24 no celular.
- // O relógio permanece independente dessa taxa.
- let lastFrame=0,frameErrors=0;
- const minimumFrameTime=window.matchMedia('(max-width:760px)').matches?1000/24:1000/30;
- function frame(t){
-  if(!canvas.isConnected||view!=='game'||!active)return;
-  animation=requestAnimationFrame(frame);
-  if(document.hidden||t-lastFrame<minimumFrameTime)return;
-  lastFrame=t;
-  try{
-   draw(ctx,t/1000);
-   frameErrors=0;
-  }catch(err){
-   // Um erro gráfico não deve impedir os próximos quadros nem ocultar o tabuleiro.
-   if(frameErrors++===0)console.error('LIGO: falha ao desenhar o tabuleiro',err);
-  }
- }
- animation=requestAnimationFrame(frame);
+ requestBoardFrame();
 }
+mirrorArt.addEventListener('load',()=>requestBoardFrame());
 function line(ctx,coords,width,color){ctx.beginPath();coords.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.lineWidth=width;ctx.strokeStyle=color;ctx.stroke();}
 function drawBeam(ctx,path,alpha,t){
  if(!path||alpha<=.001)return;
@@ -443,14 +400,14 @@ function drawBeam(ctx,path,alpha,t){
  line(ctx,points,9,'rgba(34,211,238,.30)');
  line(ctx,points,3,'#b6f4ff');
  ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));
- ctx.strokeStyle='rgba(200,250,255,.24)';ctx.lineWidth=1.5;ctx.setLineDash([13,23]);ctx.lineDashOffset=-t*23;ctx.stroke();ctx.setLineDash([]);
+ ctx.strokeStyle='rgba(200,250,255,.24)';ctx.lineWidth=1.5;ctx.setLineDash([13,23]);ctx.lineDashOffset=0;ctx.stroke();ctx.setLineDash([]);
  ctx.restore();
 }
 function draw(ctx,t){
  syncVisual();
  const now=t*1000,reduced=prefersReduced.matches;
  ctx.clearRect(0,0,1000,450);
- ctx.save();ctx.globalAlpha=reduced?1:ease((now-visual.enteredAt)/520);
+ ctx.save();ctx.globalAlpha=1;
  ctx.fillStyle='#0a1528';ctx.fillRect(0,0,1000,450);
  ctx.strokeStyle='rgba(61,113,154,.14)';ctx.lineWidth=1;
  for(let i=20;i<1000;i+=39){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,450);ctx.stroke();}
@@ -458,20 +415,20 @@ function draw(ctx,t){
  ctx.strokeStyle='#32516e';ctx.strokeRect(12,12,976,426);
  const q=currentLevels()[active.stage-1],c=[180,43],sz=61,rx=c[0]+q.receiver[0]*sz,ry=c[1]+q.receiver[1]*sz;
  const success=visual.beamTo?.hit;
- const pulse=reduced?0:(.5+.5*Math.sin(t*2.5));
+ const pulse=0;
  ctx.fillStyle=success?`rgba(36,210,156,${.16+.07*pulse})`:'rgba(33,130,141,.13)';
  ctx.beginPath();ctx.arc(rx,ry,27+(reduced?0:2*pulse),0,Math.PI*2);ctx.fill();
  ctx.fillStyle='#103b4c';ctx.beginPath();ctx.arc(rx,ry,20,0,Math.PI*2);ctx.fill();
  ctx.strokeStyle=success?'#32f5b9':'#67d0ce';ctx.lineWidth=4;ctx.stroke();
  ctx.strokeStyle='#d2fff7';ctx.lineWidth=1;ctx.beginPath();ctx.arc(rx,ry,11,0,Math.PI*2);ctx.stroke();
  ctx.fillStyle='#32d8b4';ctx.beginPath();ctx.arc(rx,ry,5,0,Math.PI*2);ctx.fill();
- const fade=reduced?1:ease((now-visual.beamAt)/380);
+ const fade=reduced||!visual.beamFrom?1:ease((now-visual.beamAt)/180);
  if(visual.beamFrom&&fade<1)drawBeam(ctx,visual.beamFrom,1-fade,t);
  drawBeam(ctx,visual.beamTo,fade,t);
  if(visual.beamTo?.blocked){const last=visual.beamTo.points.at(-1),bx=c[0]+last[0]*sz,by=c[1]+last[1]*sz;ctx.fillStyle='rgba(251,191,36,.35)';ctx.beginPath();ctx.arc(bx,by,10,0,Math.PI*2);ctx.fill();}
  q.mirrors.forEach((m,i)=>{
   const [px,py]=[c[0]+m[0]*sz,c[1]+m[1]*sz],a=visual.angles[i];
-  const angle=reduced?a.to:a.from+(a.to-a.from)*ease((now-a.start)/300);
+  const angle=reduced?a.to:a.from+(a.to-a.from)*ease((now-a.start)/180);
   if(mirrorArt.complete&&mirrorArt.naturalWidth){ctx.save();ctx.translate(px,py);ctx.rotate(angle*Math.PI/180);ctx.drawImage(mirrorArt,-29,-29,58,58);ctx.restore();}
   else{ctx.fillStyle='#467995';ctx.beginPath();ctx.arc(px,py,24,0,Math.PI*2);ctx.fill();}
   ctx.fillStyle='#dffaff';ctx.font='bold 11px Arial';ctx.fillText('E'+(i+1),px+15,py+25);
@@ -479,7 +436,7 @@ function draw(ctx,t){
  const ex=c[0]+q.emitter[0]*sz,ey=c[1]+q.emitter[1]*sz;
  ctx.fillStyle='#143b58';ctx.beginPath();ctx.arc(ex,ey,21,0,Math.PI*2);ctx.fill();
  ctx.strokeStyle='#7ad9ff';ctx.lineWidth=3;ctx.stroke();
- ctx.fillStyle='#b9f6ff';ctx.beginPath();ctx.arc(ex,ey,8+(reduced?0:1.2*Math.sin(t*2.5)),0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#b9f6ff';ctx.beginPath();ctx.arc(ex,ey,8,0,Math.PI*2);ctx.fill();
  ctx.restore();
 }
 function go(dest){if(dest==='home'&&active)resetVisitor();view=dest;render();if(dest==='ranking')void refreshRanking()}
@@ -515,7 +472,7 @@ async function action(type,e){if(type==='mobile-menu'){document.querySelector('.
  if(type==='refresh-ranking'){void refreshRanking();return}
  if(type==='rank-level'){const level=e.target.closest('[data-level]')?.dataset.level;if(Object.hasOwn(DIFFICULTY_LABELS,level)&&rankDifficulty!==level){rankDifficulty=level;board={ranking:[],me:null};rankingError='Carregando...';render();void refreshRanking()}return}
  if(!active)return;
- if(type==='mirror'){const btn=e.target.closest('button'),i=Number(btn?.dataset.i),step=Number(btn?.dataset.step||1);if(Number.isInteger(i)&&Number.isInteger(step))rotateMirror(i,step);return}
+ if(type==='mirror'){const btn=e.target.closest('button'),i=Number(btn?.dataset.i);if(Number.isInteger(i))rotateMirror(i);return}
  if(type==='confirm') {if(trace(currentLevels()[active.stage-1],mirrors).hit)void advanceStage();}
 
 }
