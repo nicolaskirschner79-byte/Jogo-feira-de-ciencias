@@ -17,9 +17,9 @@ Jogo educativo com cinco circuitos de reflexão por partida, com posições gera
 
 | Nível | Espelhos ao longo das cinco fases |
 | --- | --- |
-| Fácil | 1, 2, 2, 3, 3 |
-| Médio | 2, 3, 4, 4, 5 |
-| Difícil | 4, 4, 5, 5, 6 |
+| Fácil | 2, 3, 3, 4, 5 |
+| Médio | 4, 5, 6, 7, 8 |
+| Difícil | 6, 7, 8, 9, 10 |
 
 Os circuitos são gerados no Supabase, com posições variáveis do emissor, receptor e espelhos. A complexidade é progressiva em dois eixos: a quantidade de reflexões obrigatórias e o comprimento dos segmentos entre as curvas (mais curtos no Difícil).
 
@@ -33,17 +33,32 @@ O cadastro exige dois campos separados: Nome (2 a 35 caracteres) e Sobrenome (2 
 
 **Privacidade:** o nome completo é publicado no ranking. Como a feira pode receber menores de idade, obtenha consentimento adequado dos responsáveis ou considere mudar para a exibição de nome e inicial do sobrenome antes de divulgar o endereço do jogo.
 
-**Estado da verificação:** o gerador foi validado com 900 circuitos nos três níveis, e 600 circuitos adicionais passaram nos testes cruzados com a lógica de ângulos da interface, incluindo reflexões equivalentes, bloqueio de 45° e retorno 315°→0°. O JavaScript da interface passou na verificação de sintaxe. O deploy `ligo-api` está na versão 5. Testes HTTP reais com múltiplos visitantes ainda não foram concluídos neste ambiente.
+**Estado da verificação:** o gerador foi validado com 900 circuitos nos três níveis, e 600 circuitos adicionais passaram nos testes cruzados com a lógica de ângulos da interface, incluindo reflexões equivalentes, bloqueio de 45° e retorno 315°→0°. O JavaScript da interface passou na verificação de sintaxe. O deploy `ligo-api` está na versão 6. Testes HTTP reais com múltiplos visitantes ainda não foram concluídos neste ambiente.
 
 ## Modo leve — retorno aos dois sentidos (29/10/2026)
 
 - Espelhos voltaram às duas diagonais: **/** e **\\**. Um clique/toque no espelho ou no botão alterna a orientação.
 - A lógica de colisão e o validador do Supabase usam estados booleanos. A API da função `ligo-api`, versão 5, gera desafios novos com espelhos binários; desafios antigos com ângulos numéricos são convertidos ao carregar.
-- A complexidade dos níveis continua por quantidade de espelhos: Fácil 1/2/2/3/3, Médio 2/3/4/4/5 e Difícil 4/4/5/5/6, com distâncias diferentes entre reflexões.
+- A complexidade dos níveis continua por quantidade de espelhos: Fácil 2/3/3/4/5, Médio 4/5/6/7/8 e Difícil 6/7/8/9/10, com distâncias diferentes entre reflexões.
 - A interface **não redesenha o tabuleiro continuamente**: desenha uma vez quando a fase abre e anima por aproximadamente 220 ms após cada giro; em seguida, para de requisitar quadros.
 - Efeitos ambientais de fundo foram ocultados durante a partida, preservando o visual do menu e dos rankings.
 - Cadastro com nome e sobrenome, partidas separadas por visitante e rankings por dificuldade foram mantidos.
 - Teste simulado: 15 combinações (5 fases × 3 dificuldades), com laser e espelhos carregados, botões funcionais e **nenhum quadro agendado após a animação**. Também foram testados 600 circuitos gerados no backend. Esses testes não substituem testes visuais em navegadores reais, especialmente celulares usados na feira.
+
+## Desafios mais complexos — versão 2
+
+A dificuldade aumentou preservando a dinâmica leve de duas orientações e o desenho sob demanda:
+
+- Fácil: 2 → 5 espelhos; trechos de reflexão um pouco mais longos e ao menos um espelho inicialmente incorreto.
+- Médio: 4 → 8 espelhos; mais reflexões próximas e pelo menos metade dos espelhos inicialmente incorretos.
+- Difícil: 6 → 10 espelhos; muitos desvios próximos e pelo menos 60% dos espelhos inicialmente incorretos.
+- Todos os espelhos do circuito gerado são relevantes para a solução; a geração rejeita circuitos com múltiplas combinações vencedoras.
+- O frontend adapta os botões para até dez espelhos, normalmente em duas linhas, sem animações constantes.
+- O backend aceita até 12 estados de espelho, mantendo a verificação no servidor.
+
+**Ranking justo:** a partir de agora, partidas novas recebem `challenge_version='challenge-v2'`. O ranking exibe somente os melhores tempos da nova versão; **os recordes anteriores continuam no banco** e não são apagados. As dificuldades ainda são comparadas separadamente.
+
+**Testes:** 1.050 circuitos gerados e enumerados para verificar solução única e um mínimo de espelhos inicialmente incorretos. Outros testes simulados verificaram o desenho, a contagem de botões e o giro binário das 15 combinações de modo/fase. A função `ligo-api` está publicada na versão 6. Não houve teste de ponta a ponta com navegadores públicos e jogadores reais neste ambiente.
 
 ## Conexão Supabase
 - Projeto: **LIGO - Feira de Ciencias**
