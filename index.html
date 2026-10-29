@@ -1,4 +1,4 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LIGO — O Desafio dos Lasers | Demonstração Offline — v3</title><meta name="description" content="Jogo de cinco fases sobre Gabriela González e o LIGO"><style>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LIGO — O Desafio dos Lasers | Circuitos aleatórios v4</title><meta name="description" content="Jogo de cinco fases sobre Gabriela González e o LIGO"><style>
 /* Demonstração offline: fontes locais do sistema, sem dependência externa. */
 :root{font-family:'DM Sans',Inter,system-ui,sans-serif;color-scheme:dark;--bg:#080d1c;--surface:#111c2e;--raised:#15243b;--text:#edf6ff;--muted:#94a9be;--border:rgba(145,184,214,.14);--cyan:#22d3ee;--blue:#367ffc;--purple:#a78bfa;--green:#34d399;--shadow:0 24px 80px rgba(0,0,0,.27)}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);min-width:320px}button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}a{color:inherit}::selection{background:#22d3ee66;color:#fff}
@@ -137,6 +137,36 @@ let theme=store.getItem('ligo_theme')||'dark',sound=store.getItem('ligo_sound')!
 let mirrors=[];
 const app=document.getElementById('app'),modalRoot=document.getElementById('modal-root');
 document.documentElement.dataset.theme=theme;
+
+function seededRandom(seed){let s=seed>>>0||123456789;return ()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296}}
+function createPuzzle(stage,seed){
+ const rng=seededRandom(seed),step=[[1,0],[0,1],[-1,0],[0,-1]],dirs=['right','down','left','up'];
+ const count=stage<=3?stage+1:stage;
+ for(let attempt=0;attempt<80000;attempt++){
+  let x=1+Math.floor(rng()*9),y=1+Math.floor(rng()*5),dir=Math.floor(rng()*4);
+  const emitter=[x,y],initial=dir,seen=new Set([x+','+y]),mirrors=[],sol=[];
+  let valid=true;
+  for(let m=0;m<count;m++){
+   const n=2+Math.floor(rng()*3),[dx,dy]=step[dir];
+   for(let j=0;j<n;j++){x+=dx;y+=dy;const k=x+','+y;if(x<0||x>10||y<0||y>6||seen.has(k)){valid=false;break}seen.add(k)}
+   if(!valid)break;
+   const next=(dir+(rng()<.5?1:3))%4;
+   const slash=step[next][0]===-step[dir][1]&&step[next][1]===-step[dir][0];
+   mirrors.push([x,y,rng()<.5]);sol.push(slash);dir=next;
+  }
+  if(!valid)continue;
+  const n=1+Math.floor(rng()*3),[dx,dy]=step[dir];
+  for(let j=0;j<n;j++){x+=dx;y+=dy;const k=x+','+y;if(x<0||x>10||y<0||y>6||seen.has(k)){valid=false;break}seen.add(k)}
+  if(!valid)continue;
+  const level={title:'Circuito '+stage,emitter,receiver:[x,y],direction:dirs[initial],mirrors,solution:sol};
+  let wins=0;for(let mask=0;mask<(1<<count);mask++){const s=mirrors.map((_,i)=>Boolean(mask&(1<<i)));if(trace(level,s).hit)wins++}
+  if(wins===1&&!mirrors.every((m,i)=>m[2]===sol[i]))return level;
+ }
+ throw Error('Circuito indisponível');
+}
+function freshLevels(){return Array.from({length:5},(_,i)=>createPuzzle(i+1,crypto.getRandomValues(new Uint32Array(1))[0]))}
+function currentLevels(){return active?.levels?.length===5?active.levels:LEVELS}
+
 function format(ms){let m=Math.max(0,Math.floor(ms));return String(Math.floor(m/60000)).padStart(2,'0')+':'+String(Math.floor(m/1000)%60).padStart(2,'0')+'.'+String(m%1000).padStart(3,'0');}
 function trace(level,states){let [px,py]=level.emitter,[dx,dy]=({right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]})[level.direction];const out=[[px,py]],seen=new Set();for(let i=0;i<95;i++){if(px===level.receiver[0]&&py===level.receiver[1])return {points:out,hit:true};const index=level.mirrors.findIndex(q=>q[0]===px&&q[1]===py);if(index!==-1)[dx,dy]=states[index]?[-dy,-dx]:[dy,dx];const k=[px,py,dx,dy].join(':');if(seen.has(k))break;seen.add(k);px+=dx;py+=dy;out.push([px,py]);if(px<0||px>10||py<0||py>6)break;}return {points:out,hit:false};}
 // Sintetizador reutilizável: efeitos mais presentes, sem picos agressivos ou cortes abruptos.
@@ -173,7 +203,7 @@ function symbol(){return `<svg width="37" height="37" viewBox="0 0 48 48" fill="
 function shell(){return `<header class="site-header"><div class="nav-container"><button class="brand" data-action="home">${symbol()}<span><strong>LIGO<span class="brand-dot">.</span></strong><small>O DESAFIO DOS LASERS</small></span></button><nav class="nav-links" aria-label="Menu"><button data-action="home" class="${view==='home'?'active':''}">Início</button><button data-action="science" class="${view==='science'?'active':''}">A ciência</button><button data-action="ranking" class="${view==='ranking'?'active':''}">Ranking</button></nav><div class="nav-actions"><button class="icon-btn" aria-label="Opções" data-action="settings">⚙</button><button class="btn nav-play" data-action="play"><span class="nav-play-icon">▶</span> <span class="nav-play-label">${active?'Continuar':'Jogar agora'}</span></button><button class="icon-btn mobile-toggle" aria-label="Abrir menu" data-action="mobile-menu">☰</button></div></div></header><main>${body()}</main><footer class="site-footer"><div class="container footer-inner"><div class="footer-brand">${symbol()}<span><strong>LIGO — O DESAFIO DOS LASERS</strong><small>Inspirado em Gabriela González e no observatório LIGO.</small></span></div><div class="footer-meta">DEMONSTRAÇÃO OFFLINE • FEIRA DE CIÊNCIAS</div></div></footer>`}
 function body(){
  if(view==='home')return `<section class="hero container"><div class="hero-content"><div class="eyebrow"><span class="glow-dot"></span> UMA EXPERIÊNCIA CIENTÍFICA INTERATIVA</div><h1>Domine a luz.<br/><span>Desvende o</span><br/>universo<span class="dot-large">.</span></h1><p>Uma aventura em cinco desafios inspirada nas pesquisas da física argentina <strong>Gabriela González</strong> e no observatório LIGO. Gire espelhos, alinhe feixes e teste sua precisão.</p><div class="hero-buttons"><button class="btn btn-primary btn-large" data-action="play">▶ INICIAR MISSÃO →</button><button class="btn btn-secondary btn-large" data-action="science">CONHECER A CIÊNCIA</button></div><div class="hero-features"><div><span class="feature-icon">◎</span><span><strong>05 FASES</strong><small>Desafios únicos</small></span></div><div><span class="feature-icon">◴</span><span><strong>CONTRA O TEMPO</strong><small>Teste suas habilidades</small></span></div><div><span class="feature-icon">⌁</span><span><strong>JOGO 2D</strong><small>Feito para explorar</small></span></div></div></div><div class="hero-art"><div class="hero-art-header"><span class="tiny-led"></span> INTERFERÔMETRO VIRTUAL <span>LAB.01</span></div><svg viewBox="0 0 580 400" class="hero-science-svg"><defs><linearGradient id="laser"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#9366ec"/></linearGradient></defs><path d="M64 242H242V105H465V242H242V349H465" fill="none" stroke="#193e5b" stroke-width="16"/><path d="M64 242H242V105H465V242H242V349H465" class="beam-motion" fill="none" stroke="url(#laser)" stroke-width="3"/><rect x="221" y="222" width="42" height="42" rx="7" fill="#142a42" stroke="#5bcdf0"/><path d="M223 260L259 224" stroke="#d1f5ff" stroke-width="5"/><rect x="449" y="88" width="32" height="32" rx="6" fill="#152b45" stroke="#9b8bf9"/><path d="M453 92L477 116" stroke="#c2baff" stroke-width="4"/><rect x="449" y="333" width="32" height="32" rx="6" fill="#152b45" stroke="#9b8bf9"/><path d="M453 337L477 361" stroke="#c2baff" stroke-width="4"/><circle cx="466" cy="242" r="20" stroke="#35e7d2" stroke-width="3" fill="#11383e"/><circle cx="466" cy="242" r="7" fill="#35e7d2"/><rect x="40" y="225" width="45" height="34" rx="7" fill="#183b5d" stroke="#4dbcf3"/></svg><div class="art-sub"><span class="art-wave">⌁⌁⌁</span><span>PRECISÃO • LUZ • DESCOBERTA</span><span class="art-rate">● SISTEMA ATIVO</span></div></div></section><section class="mission-section container"><div class="section-intro"><div><div class="eyebrow">01 / A MISSÃO</div><h2>Cinco desafios.<br/><span>Uma grande descoberta.</span></h2></div><p>Cinco circuitos com novos posicionamentos de laser, espelhos e receptor.</p></div><div class="mission-grid">${META.map((s,i)=>`<div class="mission-card"><span class="mission-num">0${i+1} / 05</span><span class="mission-icon">${['◇','◇','◇','◇','◇'][i]}</span><h3>${s[0]}</h3><p>${s[1]}</p><span class="mission-tail">FASE ${i+1} →</span></div>`).join('')}</div></section><section class="discover-band container"><div class="discover-logo">${symbol()}</div><div><div class="eyebrow">PESQUISA QUE TRANSFORMA</div><h2>Uma cientista. Uma nova janela para o cosmos.</h2><p>Entenda o papel da luz e dos detectores na busca por ondas gravitacionais.</p></div><button class="btn btn-secondary" data-action="science">EXPLORAR PESQUISA →</button></section>`;
- if(view==='game')return `<div class="container playing"><div class="play-top"><button class="back-link" data-action="home">← Menu principal</button><div class="play-info"><span class="mode-badge"><span class="signal-dot"></span> DEMONSTRAÇÃO OFFLINE</span><span class="player-chip"><span class="user-avatar">${escapeText(player.slice(0,1).toUpperCase())}</span>${escapeText(player)}</span></div></div><div class="stage-topline"><div class="phase-bars">${META.map((s,i)=>`<div class="phase-bar ${i+1<active.stage?'done':i+1===active.stage?'current':''}"><span>${i+1<active.stage?'✓':i+1}</span><small>${['REFLEXÃO 1','REFLEXÃO 2','REFLEXÃO 3','REFLEXÃO 4','REFLEXÃO 5'][i]}</small></div>`).join('')}</div><div class="chrono-box"><small>TEMPO DE MISSÃO</small><div>◷ <span class="timer-value" id="timer">${format(Date.now()-active.startedAt)}</span></div></div></div><section class="game-stage"><div class="stage-heading"><div><div class="eyebrow"><span class="glow-dot"></span> ${String(active.stage).padStart(2,'0')} / REFLEXÃO DOS ESPELHOS</div><h2>${META[active.stage-1][0]}</h2><p>${META[active.stage-1][1]}</p></div><span class="step-pill">DESAFIO ${active.stage}/5</span></div><div class="phaser-wrap"><canvas id="gameboard" width="1000" height="450" style="display:block;width:100%;height:100%;touch-action:manipulation;cursor:${'pointer'}"></canvas></div><div class="board-bottom"><span>● SISTEMA DE DETECÇÃO • SIMULAÇÃO DIDÁTICA</span><span>LAB // 0${active.stage}.01</span></div><div id="controls"></div><div class="science-note"><span>✦</span><p>${NOTES[active.stage-1]}</p></div><p class="timer-footnote">ⓘ O cronômetro permanece ativo ao retornar para o menu. Os tempos deste modo não entram no ranking on-line.</p></section></div>`;
+ if(view==='game')return `<div class="container playing"><div class="play-top"><button class="back-link" data-action="home">← Menu principal</button><div class="play-info"><span class="mode-badge"><span class="signal-dot"></span> DEMONSTRAÇÃO OFFLINE</span><span class="player-chip"><span class="user-avatar">${escapeText(player.slice(0,1).toUpperCase())}</span>${escapeText(player)}</span></div></div><div class="stage-topline"><div class="phase-bars">${META.map((s,i)=>`<div class="phase-bar ${i+1<active.stage?'done':i+1===active.stage?'current':''}"><span>${i+1<active.stage?'✓':i+1}</span><small>${['REFLEXÃO 1','REFLEXÃO 2','REFLEXÃO 3','REFLEXÃO 4','REFLEXÃO 5'][i]}</small></div>`).join('')}</div><div class="chrono-box"><small>TEMPO DE MISSÃO</small><div>◷ <span class="timer-value" id="timer">${format(Date.now()-active.startedAt)}</span></div></div></div><section class="game-stage"><div class="stage-heading"><div><div class="eyebrow"><span class="glow-dot"></span> ${String(active.stage).padStart(2,'0')} / REFLEXÃO DOS ESPELHOS</div><h2>${currentLevels()[active.stage-1].title}</h2><p>${META[active.stage-1][1]}</p></div><span class="step-pill">DESAFIO ${active.stage}/5</span></div><div class="phaser-wrap"><canvas id="gameboard" width="1000" height="450" style="display:block;width:100%;height:100%;touch-action:manipulation;cursor:${'pointer'}"></canvas></div><div class="board-bottom"><span>● SISTEMA DE DETECÇÃO • SIMULAÇÃO DIDÁTICA</span><span>LAB // 0${active.stage}.01</span></div><div id="controls"></div><div class="science-note"><span>✦</span><p>${NOTES[active.stage-1]}</p></div><p class="timer-footnote">ⓘ O cronômetro permanece ativo ao retornar para o menu. Os tempos deste modo não entram no ranking on-line.</p></section></div>`;
  if(view==='ranking')return `<section class="container inner-page"><div class="eyebrow">♛ CLASSIFICAÇÃO GLOBAL</div><div class="page-header"><div><h1>Hall da <span>descoberta.</span></h1><p>O ranking global exige conexão real ao Supabase.</p></div></div><div class="leaderboard-panel"><div class="ranking-top"><div><h2>Ranking dos cientistas</h2><p>Apenas resultados verificados podem ser publicados.</p></div></div><div class="empty-ranking"><h3>Ranking on-line não conectado</h3><p>Esta demonstração é 100% local e não inventa jogadores nem posições. O projeto React/Supabase inclui a API e as migrações para habilitar o ranking real.</p><button class="btn btn-primary" data-action="play">JOGAR LOCALMENTE →</button></div></div></section>`;
  if(view==='science')return `<section class="container inner-page"><div class="eyebrow">✦ CONHEÇA A PESQUISA</div><div class="page-header"><div><h1>Uma nova forma de <span>ouvir o universo.</span></h1><p>O que lasers, espelhos e padrões de interferência têm a ver com ondas gravitacionais?</p></div></div><div class="science-feature"><div class="science-visual"><div class="science-orb"></div><div class="science-orb-mid"></div><div class="science-orb-inner">${symbol()}</div></div><div class="science-copy"><div class="eyebrow">GABRIELA GONZÁLEZ</div><h2>Da Argentina à descoberta de ondas gravitacionais.</h2><p>Gabriela González é uma física argentina ligada à Louisiana State University e à colaboração científica LIGO. Seu trabalho envolveu a compreensão de ruídos e o aprimoramento dos detectores.</p><p>Os detectores utilizam a interferência de feixes de laser para medir alterações extremamente pequenas nas distâncias percorridas pela luz.</p><a class="text-link" target="_blank" rel="noopener noreferrer" href="https://www.lsu.edu/physics/people/faculty/gonzalez.php">Trajetória na LSU ↗</a></div></div><div class="science-three"><div><span>1916</span><h3>Uma previsão</h3><p>Albert Einstein prevê as ondas gravitacionais.</p></div><div><span>2015</span><h3>Um sinal histórico</h3><p>O LIGO registra a primeira detecção direta em 14 de setembro.</p></div><div><span>2016</span><h3>O anúncio</h3><p>A descoberta foi divulgada em 11 de fevereiro.</p></div></div><div class="science-note large-note">✦ <p><strong>Representação didática:</strong> neste jogo, os espelhos, sinais e controles foram simplificados para favorecer a aprendizagem. O funcionamento do equipamento real é muito mais sofisticado.</p></div><button class="btn btn-primary btn-large science-cta" data-action="play">ENTRAR NO LABORATÓRIO →</button></section>`;
  if(view==='results')return `<section class="results-page container"><div class="results-sparks">✦ ✧ ✦</div><div class="eyebrow"><span class="glow-dot"></span> SINAL ANALISADO COM SUCESSO</div><h1>Missão <span>concluída!</span></h1><p>Você concluiu os cinco desafios e explorou os princípios utilizados na pesquisa de ondas gravitacionais.</p><div class="results-card"><span>SEU TEMPO FINAL</span><strong>${format(result?.duration_ms||0)}</strong><div class="results-metrics"><div><span>RESULTADO</span><strong>5/5 fases</strong></div><div><span>RANKING GLOBAL</span><strong>Não conectado</strong></div></div></div><div class="result-actions"><button class="btn btn-primary btn-large" data-action="restart">↻ JOGAR NOVAMENTE</button><button class="btn btn-secondary btn-large" data-action="ranking">VER RANKING</button><button class="btn btn-secondary btn-large" data-action="home">MENU PRINCIPAL</button></div><p class="small-muted">Esta experiência não constitui uma descoberta científica real.</p></section>`;
@@ -188,10 +218,10 @@ function showModal(kind){modal=kind;let body='';
  modalRoot.innerHTML=`<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true"><button class="modal-close icon-btn" data-action="close" aria-label="Fechar">×</button>${body}</div></div>`;
 }
 function hideModal(){modal='';modalRoot.innerHTML=''}
-function begin(){hideModal();active={stage:1,startedAt:Date.now(),id:(typeof crypto.randomUUID==='function'?crypto.randomUUID():`local-${Date.now()}`)};resetStage();store.setItem('ligo_demo_run',JSON.stringify(active));view='game';beep(780,'start');render();}
-function resetStage(){mirrors=LEVELS[(active?.stage||1)-1].mirrors.map(q=>q[2]);}
+function begin(){hideModal();active={stage:1,startedAt:Date.now(),id:(typeof crypto.randomUUID==='function'?crypto.randomUUID():`local-${Date.now()}`),levels:freshLevels()};resetStage();store.setItem('ligo_demo_run',JSON.stringify(active));view='game';beep(780,'start');render();}
+function resetStage(){mirrors=currentLevels()[(active?.stage||1)-1].mirrors.map(q=>q[2]);}
 function advanceStage(){beep(880,'success');if(active.stage<5){active.stage++;store.setItem('ligo_demo_run',JSON.stringify(active));resetStage();render();}else{result={duration_ms:Date.now()-active.startedAt};store.setItem('ligo_demo_result',JSON.stringify(result));store.removeItem('ligo_demo_run');active=null;view='results';render();}}
-function renderControls(){const c=document.getElementById('controls');if(!c||!active)return;const hit=trace(LEVELS[active.stage-1],mirrors).hit;
+function renderControls(){const c=document.getElementById('controls');if(!c||!active)return;const hit=trace(currentLevels()[active.stage-1],mirrors).hit;
  const main=`<div class="control-title">◎ ORIENTAÇÃO DOS ESPELHOS</div><p class="small-muted">Toque nos espelhos ou use os botões. Faça o laser atingir o receptor verde.</p><div class="mirror-controls">${mirrors.map((v,i)=>`<button class="mirror-control" aria-label="Girar espelho ${i+1}" data-action="mirror" data-i="${i}">↻ E${i+1} <strong>${v?'/':'\\'}</strong></button>`).join('')}</div>`;
  const side=`<div class="objective-state ${hit?'good':''}"><span>${hit?'✓':'◎'}</span><div><strong>${hit?'Receptor ativado!':'Encontre o caminho'}</strong><small>${hit?'Feixe alinhado: pode avançar.':'Gire os espelhos e acerte o sensor.'}</small></div></div><button class="btn btn-primary" data-action="confirm" ${hit?'':'disabled'}>${active.stage===5?'CONCLUIR MISSÃO':'PRÓXIMA FASE'} →</button>`;
  c.innerHTML=`<div class="control-grid"><div class="control-main">${main}</div><div class="control-action">${side}</div></div>`;
@@ -208,7 +238,7 @@ const ease=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
 function syncVisual(){
  const stage=active?.stage||0;
  if(visual.stage===stage)return;
- const level=LEVELS[stage-1];
+ const level=currentLevels()[stage-1];
  visual={stage,angles:level?level.mirrors.map((m,i)=>({from:mirrors[i]?90:0,to:mirrors[i]?90:0,start:0})):[],beamFrom:null,beamTo:level?trace(level,mirrors):null,beamAt:performance.now()-400,enteredAt:performance.now()};
 }
 function rotateMirror(i){
@@ -219,7 +249,7 @@ function rotateMirror(i){
  visual.beamFrom=visual.beamTo;
  mirrors[i]=!mirrors[i];
  visual.angles[i]={from:current,to:mirrors[i]?90:0,start:now};
- visual.beamTo=trace(LEVELS[active.stage-1],mirrors);
+ visual.beamTo=trace(currentLevels()[active.stage-1],mirrors);
  visual.beamAt=now;
  beep(540,'mirror');renderControls();
 }
@@ -229,7 +259,7 @@ function drawLoop(){
  const canvas=document.getElementById('gameboard');if(!canvas||!active)return;
  syncVisual();
  canvas.addEventListener('pointerdown',event=>{
-  const pt=canvasPoint(event,canvas),m=LEVELS[active.stage-1].mirrors;
+  const pt=canvasPoint(event,canvas),m=currentLevels()[active.stage-1].mirrors;
   for(let i=0;i<m.length;i++)if(Math.hypot(pt.x-(180+m[i][0]*61),pt.y-(43+m[i][1]*61))<32){rotateMirror(i);break;}
  });
  const ctx=canvas.getContext('2d');
@@ -258,7 +288,7 @@ function draw(ctx,t){
  for(let i=20;i<1000;i+=39){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,450);ctx.stroke();}
  for(let j=20;j<450;j+=39){ctx.beginPath();ctx.moveTo(0,j);ctx.lineTo(1000,j);ctx.stroke();}
  ctx.strokeStyle='#32516e';ctx.strokeRect(12,12,976,426);
- const q=LEVELS[active.stage-1],c=[180,43],sz=61,rx=c[0]+q.receiver[0]*sz,ry=c[1]+q.receiver[1]*sz;
+ const q=currentLevels()[active.stage-1],c=[180,43],sz=61,rx=c[0]+q.receiver[0]*sz,ry=c[1]+q.receiver[1]*sz;
  const success=visual.beamTo?.hit;
  const pulse=reduced?0:(.5+.5*Math.sin(t*2.5));
  ctx.fillStyle=success?`rgba(36,210,156,${.16+.07*pulse})`:'rgba(33,130,141,.13)';
@@ -293,7 +323,7 @@ function action(type,e){if(type==='mobile-menu'){document.querySelector('.nav-li
  if(type==='begin'||type==='restart'){begin();return}
  if(!active)return;
  if(type==='mirror'){const i=+e.target.closest('button').dataset.i;rotateMirror(i);return}
- if(type==='confirm') {if(trace(LEVELS[active.stage-1],mirrors).hit)advanceStage();}
+ if(type==='confirm') {if(trace(currentLevels()[active.stage-1],mirrors).hit)advanceStage();}
 
 }
 document.addEventListener('click',e=>{const button=e.target.closest('[data-action]');if(button)action(button.dataset.action,e)});
