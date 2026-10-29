@@ -77,7 +77,13 @@ async function getRun(playerId,runId){
  else q+='&status=eq.playing&order=started_at.desc';
  const rows=await db(q+'&limit=1');return rows[0]||null;
 }
-async function start(player){
+async function start(player, fresh=false){
+ // Em feira, uma nova entrada de nome inicia uma nova tentativa.
+ // Uma tentativa anterior não concluída deste mesmo jogador fica abandonada.
+ if(fresh){
+   const previous=await getRun(player.id);
+   if(previous)await db('game_runs?id=eq.'+previous.id+'&player_id=eq.'+player.id+'&status=eq.playing',{method:'PATCH',body:{status:'abandoned'}});
+ }
  let run=await getRun(player.id);
  if(!run){
   // Limita abusos: no máximo dez novas tentativas por identidade em 60 minutos.
@@ -107,10 +113,15 @@ Deno.serve(async req=>{
   if(action==='health')return reply({ok:true,service:'ligo-api',timestamp:new Date().toISOString()});
   if(action==='register'){
    if(!/^[a-f0-9]{64}$/i.test(data.token||''))return reply({error:'TOKEN_INVALIDO'},400);
-   let p=await playerFor(data.token);
-   if(p)return reply({player:p,existing:true});
-   const nickname=String(data.nickname||'').trim().replace(/\s+/g,' ');
+   const nickname=String(data.nickname||'').normalize('NFC').trim().replace(/\s+/g,' ');
    if(!/^[\p{L}\p{N} ]{3,18}$/u.test(nickname)||/^(admin|administrador|sistema)$/i.test(nickname))return reply({error:'NOME_INVALIDO'},400);
+   const p=await playerFor(data.token);
+   if(p){
+     // Um token de outro participante nunca pode substituir o nome exibido.
+     if(p.nickname.normalize('NFC').toLocaleLowerCase('pt-BR')!==nickname.toLocaleLowerCase('pt-BR'))
+       return reply({error:'IDENTIDADE_NAO_CONFERE'},403);
+     return reply({player:p,existing:true});
+   }
    try{
     const ins=await db('players',{method:'POST',headers:{Prefer:'return=representation'},body:{nickname,token_hash:await digest(data.token.toLowerCase())}});
     return reply({player:{id:ins[0].id,nickname:ins[0].nickname},existing:false});
@@ -120,7 +131,7 @@ Deno.serve(async req=>{
   const player=await playerFor(data.token);
   if(!player)return reply({error:'JOGADOR_NAO_ENCONTRADO'},401);
   if(action==='profile')return reply({player,run:await getRun(player.id)});
-  if(action==='start')return reply(await start(player));
+  if(action==='start')return reply(await start(player,data.fresh===true));
   if(action==='submit'){
    if(!/^[0-9a-f-]{36}$/i.test(String(data.run_id))||!Array.isArray(data.states)||data.states.length>5||data.states.some(s=>typeof s!=='boolean'))return reply({error:'DADOS_INVALIDOS'},400);
    const out=await db('rpc/ligo_submit_stage',{method:'POST',body:{p_run_id:data.run_id,p_player_id:player.id,p_states:data.states}});
