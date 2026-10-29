@@ -13,29 +13,27 @@ O usuário pode retornar usando botões explícitos, sem depender do botão Volt
 
 O sistema de fases, os tempos e o ranking não foram modificados por esta melhoria. Navegação em JavaScript validada com 10 testes simulados de histórico, salto e retorno, sem falhas. A validação visual em navegador real ainda está pendente.
 
-## A Ciência — Gabriela González e LIGO
+## A Ciência — edição visual Gabriela González
 
-A seção **A ciência** do `index.html` foi recriada em um formato editorial responsivo com história de Gabriela González, explicação do projeto LIGO e experiência interativa de interferometria.
+A página **A Ciência** foi redesenhada como uma exposição digital com **Gabriela González no centro da narrativa** e o LIGO como continuação natural de sua história.
 
-A experiência inclui:
-- Retratos de Gabriela González de fontes oficiais da Louisiana State University (LSU), incluindo fotografia em ambiente de pesquisa;
-- Vista aérea do observatório LIGO Livingston (imagem oficial disponibilizada pelo LIGO Laboratory);
-- Biografia resumida (Córdoba, Universidade Nacional de Córdoba, doutorado na Syracuse, atuação na LSU e porta-voz da LIGO Scientific Collaboration);
-- Linha do tempo sobre Einstein, fundação do LIGO e a primeira detecção de ondas gravitacionais;
-- Dois observatórios e braços de 4 km; explicação dos lasers, espelhos e padrões de interferência;
-- Diagrama vetorial de três etapas, controlado por clique, **sem renderização contínua**, com explicação acessível e a ressalva de que é uma representação educativa;
-- Links de referência e créditos das imagens.
+### Percurso
 
-**Desempenho:** as fotos secundárias usam carregamento diferido (`loading=lazy`) e decodificação assíncrona. O diagrama só altera o estado quando o visitante clica nos controles. **A rolagem vertical foi habilitada apenas para a página de ciência**, mantendo a área do jogo no layout de uma tela.
+1. **Capa editorial:** retrato de Gabriela na sala de controle (LSU), tipografia expressiva, introdução breve e botões para navegar.
+2. **Quem é Gabriela:** resumo legível de sua formação, carreira e pesquisa, acompanhado de uma segunda foto oficial da LSU.
+3. **Linha do tempo pessoal:** 1988, 1995, 1997–2001 e 2011–2017, com destaque para a atuação no LIGO.
+4. **Contribuições:** redução de ruído, calibração e colaboração científica, explicadas em três cards curtos.
+5. **Projeto LIGO:** imagem aérea oficial do observatório Livingston, explicação concisa dos dois detectores e braços de 4 km, além de um bloco sobre a primeira detecção em 2015.
+6. **Laboratório interativo:** diagrama SVG preservado, com três etapas e mudança de estado somente por clique.
+7. **Chamada para jogar:** conexão entre a ciência real e os desafios didáticos com espelhos, com referências e créditos.
 
-**Fontes:**
-- [LSU — Gabriela González](https://www.lsu.edu/physics/people/faculty/gonzalez.php)
-- [Página acadêmica de Gabriela González](https://www.phys.lsu.edu/faculty/gonzalez/)
-- [LIGO Laboratory — What is LIGO?](https://www.ligo.caltech.edu/page/what-is-ligo)
-- [LIGO Laboratory — Timeline](https://www.ligo.caltech.edu/page/timeline)
-- [LIGO Laboratory — fotografia aérea](https://dcc.ligo.org/LIGO-G0900706/public)
+**Navegação:** menus de salto para biografia, trajetória, LIGO e experimento; barra **Voltar / Início** permanece visível ao rolar e usa o histórico das seções. A rolagem continua restrita à página A Ciência; a área de jogo conserva sua organização.
 
-**Verificação:** HTML/JavaScript compilado em teste estático; seção renderizada em simulação de DOM com três controles e quatro imagens. Ainda não foi realizado um teste visual completo em dispositivos físicos.
+**Responsividade:** grades adaptativas para desktop, tablet e celular; textos com largura limitada, tipografia escalável e contraste consistente. Fotografias secundárias usam `loading="lazy"`; fotografia da capa usa prioridade alta. Sem dependências externas de JavaScript, animações contínuas ou alteração do ranking.
+
+**Fontes e imagens:** [Gabriela na LSU](https://www.lsu.edu/physics/people/faculty/gonzalez.php), [pesquisa acadêmica](https://www.phys.lsu.edu/faculty/gonzalez/), [LIGO](https://www.ligo.caltech.edu/page/what-is-ligo), [primeira detecção](https://www.ligo.caltech.edu/detection) e [fotografia aérea do laboratório](https://dcc.ligo.org/LIGO-G0900706/public). O experimento é explicitamente apresentado como simplificação educativa.
+
+**Validação:** sintaxe JavaScript validada, seções e navegação simuladas, salto e retorno por seção conferidos, três etapas do diagrama testadas. Não foi executada auditoria visual em navegadores físicos.
 
 
 Jogo educativo com cinco circuitos de reflexão por partida, com posições geradas de forma variável.
