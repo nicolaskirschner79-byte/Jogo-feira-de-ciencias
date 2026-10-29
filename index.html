@@ -159,7 +159,7 @@ function preparePlayerToken(name){
  return {token,key,existing:!!profiles[key]};
 }
 function rememberPlayer(name,token){const profiles=profileMap();profiles[normalizeName(name)]=token;store.setItem(PROFILE_KEY,JSON.stringify(profiles))}
-function resetVisitor(){player='';playerToken='';active=null;result=null;mirrors=[];busy=false;visual.stage=0;selectedDifficulty='facil';}
+function resetVisitor(){player='';playerToken='';active=null;result=null;mirrors=[];busy=false;visual.stage='';selectedDifficulty='facil';}
 
 async function api(action,values={}){
  const c=new AbortController(),h=setTimeout(()=>c.abort(),15000);
@@ -237,7 +237,25 @@ function freshLevels(){return Array.from({length:5},(_,i)=>createPuzzle(i+1,cryp
 function currentLevels(){return active?.levels?.length===5?active.levels.map((p,i)=>p||LEVELS[i]):LEVELS}
 
 function format(ms){let m=Math.max(0,Math.floor(ms));return String(Math.floor(m/60000)).padStart(2,'0')+':'+String(Math.floor(m/1000)%60).padStart(2,'0')+'.'+String(m%1000).padStart(3,'0');}
-function trace(level,states){let [px,py]=level.emitter,[dx,dy]=({right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]})[level.direction];const out=[[px,py]],seen=new Set();for(let i=0;i<95;i++){if(px===level.receiver[0]&&py===level.receiver[1])return {points:out,hit:true};const index=level.mirrors.findIndex(q=>q[0]===px&&q[1]===py);if(index!==-1)[dx,dy]=states[index]?[-dy,-dx]:[dy,dx];const k=[px,py,dx,dy].join(':');if(seen.has(k))break;seen.add(k);px+=dx;py+=dy;out.push([px,py]);if(px<0||px>10||py<0||py>6)break;}return {points:out,hit:false};}
+function normalizedAngle(v){return ((v%360)+360)%360}
+function initialAngle(v){return typeof v==='number'?normalizedAngle(v):v===true?90:0}
+function trace(level,states){
+ let [px,py]=level.emitter,[dx,dy]=({right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]})[level.direction];
+ const points=[[px,py]],seen=new Set();
+ for(let i=0;i<95;i++){
+  if(px===level.receiver[0]&&py===level.receiver[1])return {points,hit:true,blocked:false};
+  const idx=level.mirrors.findIndex(q=>q[0]===px&&q[1]===py);
+  if(idx!==-1){
+   const angle=initialAngle(states[idx]);
+   if(angle%90!==0)return {points,hit:false,blocked:true};
+   [dx,dy]=angle%180===90?[-dy,-dx]:[dy,dx];
+  }
+  const k=[px,py,dx,dy].join(':');if(seen.has(k))break;seen.add(k);
+  px+=dx;py+=dy;points.push([px,py]);
+  if(px<0||px>10||py<0||py>6)break;
+ }
+ return {points,hit:false,blocked:false};
+}
 // Sintetizador reutilizável: efeitos mais presentes, sem picos agressivos ou cortes abruptos.
 let audioEngine=null;
 function beep(freq=650,kind='ui'){
@@ -286,14 +304,14 @@ function body(){
 function escapeText(t){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render(){app.innerHTML=shell();if(view==='game'){drawLoop();renderControls();}}
 function showModal(kind){modal=kind;let body='';
- if(kind==='register')body="<span class=\"modal-icon\">⌘</span><div class=\"eyebrow\">INSCRIÇÃO DA FEIRA DE CIÊNCIAS</div><h2>Pronto para o desafio?</h2><p>Informe nome e sobrenome e escolha um nível. Cada visitante realiza sua própria partida.</p>\n<div class=\"fair-name-fields\">\n<div><label class=\"input-label\" for=\"first-name\">NOME *</label><input id=\"first-name\" class=\"text-input\" maxlength=\"35\" autocomplete=\"off\" placeholder=\"Ex.: Ana\" required/></div>\n<div><label class=\"input-label\" for=\"last-name\">SOBRENOME *</label><input id=\"last-name\" class=\"text-input\" maxlength=\"45\" autocomplete=\"off\" placeholder=\"Ex.: Silva\" required/></div></div>\n<label class=\"input-label fair-difficulty-label\">SELECIONE A DIFICULDADE *</label>\n<div class=\"difficulty-grid\" role=\"radiogroup\" aria-label=\"Dificuldade da partida\">\n<button type=\"button\" class=\"difficulty-choice selected\" role=\"radio\" aria-checked=\"true\" data-action=\"select-difficulty\" data-level=\"facil\"><span class=\"difficulty-icon\">✧</span><strong>FÁCIL</strong><small>1 a 3 espelhos</small></button>\n<button type=\"button\" class=\"difficulty-choice\" role=\"radio\" aria-checked=\"false\" data-action=\"select-difficulty\" data-level=\"medio\"><span class=\"difficulty-icon\">◎</span><strong>MÉDIO</strong><small>2 a 4 espelhos</small></button>\n<button type=\"button\" class=\"difficulty-choice\" role=\"radio\" aria-checked=\"false\" data-action=\"select-difficulty\" data-level=\"dificil\"><span class=\"difficulty-icon\">✦</span><strong>DIFÍCIL</strong><small>3 a 5 espelhos</small></button>\n</div><small class=\"fair-privacy-note\">Seu nome completo poderá aparecer no ranking da feira. Cada nível tem classificação própria.</small>\n<div id=\"modal-error\" role=\"alert\" aria-live=\"polite\"></div><button class=\"btn btn-primary btn-large modal-main-action\" data-action=\"save-player\">CONTINUAR →</button>";
+ if(kind==='register')body="<span class=\"modal-icon\">⌘</span><div class=\"eyebrow\">INSCRIÇÃO DA FEIRA DE CIÊNCIAS</div><h2>Pronto para o desafio?</h2><p>Informe nome e sobrenome e escolha um nível. Cada visitante realiza sua própria partida.</p>\n<div class=\"fair-name-fields\">\n<div><label class=\"input-label\" for=\"first-name\">NOME *</label><input id=\"first-name\" class=\"text-input\" maxlength=\"35\" autocomplete=\"off\" placeholder=\"Ex.: Ana\" required/></div>\n<div><label class=\"input-label\" for=\"last-name\">SOBRENOME *</label><input id=\"last-name\" class=\"text-input\" maxlength=\"45\" autocomplete=\"off\" placeholder=\"Ex.: Silva\" required/></div></div>\n<label class=\"input-label fair-difficulty-label\">SELECIONE A DIFICULDADE *</label>\n<div class=\"difficulty-grid\" role=\"radiogroup\" aria-label=\"Dificuldade da partida\">\n<button type=\"button\" class=\"difficulty-choice selected\" role=\"radio\" aria-checked=\"true\" data-action=\"select-difficulty\" data-level=\"facil\"><span class=\"difficulty-icon\">✧</span><strong>FÁCIL</strong><small>1 a 3 espelhos</small></button>\n<button type=\"button\" class=\"difficulty-choice\" role=\"radio\" aria-checked=\"false\" data-action=\"select-difficulty\" data-level=\"medio\"><span class=\"difficulty-icon\">◎</span><strong>MÉDIO</strong><small>2 a 5 espelhos</small></button>\n<button type=\"button\" class=\"difficulty-choice\" role=\"radio\" aria-checked=\"false\" data-action=\"select-difficulty\" data-level=\"dificil\"><span class=\"difficulty-icon\">✦</span><strong>DIFÍCIL</strong><small>4 a 6 espelhos</small></button>\n</div><small class=\"fair-privacy-note\">Seu nome completo poderá aparecer no ranking da feira. Cada nível tem classificação própria.</small>\n<div id=\"modal-error\" role=\"alert\" aria-live=\"polite\"></div><button class=\"btn btn-primary btn-large modal-main-action\" data-action=\"save-player\">CONTINUAR →</button>";
  if(kind==='tutorial')body=`<span class="modal-icon">✦</span><div class="eyebrow">ANTES DE COMEÇAR</div><h2>Bem-vindo ao laboratório!</h2><p>Nível <strong>${DIFFICULTY_LABELS[selectedDifficulty]}</strong> — cinco fases com trajetos de reflexos diferentes.</p><div class="tutorial-list"><div><span>01</span> Toque nos espelhos do tabuleiro para refletir a luz.</div><div><span>02</span> O laser, os espelhos e o receptor mudam de lugar a cada fase.</div><div><span>03</span> Seu tempo começa ao iniciar e continua até o fim.</div><div><span>04</span> Seu tempo verificado entra automaticamente na classificação global.</div></div><button class="btn btn-primary btn-large modal-main-action" data-action="begin">▶ COMEÇAR MINHA MISSÃO</button>`;
  if(kind==='settings')body=`<span class="modal-icon">⚙</span><div class="eyebrow">SUAS PREFERÊNCIAS</div><h2>Configurações</h2><p>Ajuste o tema e os sons sem perder sua partida.</p><div class="setting-row"><div><strong>☼ Tema da interface</strong><small>Claro ou escuro</small></div><button class="toggle-choice" data-action="theme">${theme==='dark'?'Modo escuro':'Modo claro'} ↔</button></div><div class="setting-row"><div><strong>♫ Efeitos sonoros</strong><small>Áudio mais alto e equilibrado</small></div><button class="toggle-choice" data-action="sound">${sound?'Ativado':'Desativado'} ↔</button></div><button class="btn btn-primary btn-large modal-main-action" data-action="close">SALVAR E FECHAR ✓</button>`;
  modalRoot.innerHTML=`<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true"><button class="modal-close icon-btn" data-action="close" aria-label="Fechar">×</button>${body}</div></div>`;
 }
 function hideModal(){modal='';modalRoot.innerHTML=''}
 async function begin(){if(busy)return;busy=true;hideModal();try{const d=await api('start',{fresh:true,difficulty:selectedDifficulty});active={id:d.run_id,stage:d.stage,difficulty:d.difficulty,startedAt:Date.parse(d.started_at),levels:Array.from({length:5},(_,i)=>i===d.stage-1?d.puzzle:null)};resetStage();view='game';beep(780,'start');render()}catch(e){alert(errorLabel(e));view='home';render()}finally{busy=false}}
-function resetStage(){mirrors=currentLevels()[(active?.stage||1)-1].mirrors.map(q=>q[2]);}
+function resetStage(){mirrors=currentLevels()[(active?.stage||1)-1].mirrors.map(q=>initialAngle(q[2]));visual.stage='';}
 async function advanceStage(){if(busy||!active)return;busy=true;try{const d=await api('submit',{run_id:active.id,states:mirrors});beep(880,'success');if(d.finished){board={ranking:d.ranking||[],me:d.me};result={duration_ms:d.duration_ms,position:d.me?.position,difficulty:d.difficulty};rankDifficulty=d.difficulty;active=null;view='results';render()}else{active.stage=d.stage;active.levels[d.stage-1]=d.puzzle;resetStage();render()}}catch(e){alert(errorLabel(e))}finally{busy=false}}
 function renderControls(){const c=document.getElementById('controls');if(!c||!active)return;const hit=trace(currentLevels()[active.stage-1],mirrors).hit;
  const main=`<div class="control-title">◎ ORIENTAÇÃO DOS ESPELHOS</div><p class="small-muted">Toque nos espelhos ou use os botões. Faça o laser atingir o receptor verde.</p><div class="mirror-controls">${mirrors.map((v,i)=>`<button class="mirror-control" aria-label="Girar espelho ${i+1}" data-action="mirror" data-i="${i}">↻ E${i+1} <strong>${v?'/':'\\'}</strong></button>`).join('')}</div>`;
@@ -307,35 +325,66 @@ function canvasPoint(event,canvas){const r=canvas.getBoundingClientRect(),aspect
  return {x:(event.clientX-left)*1000/w,y:(event.clientY-top)*450/h};}
 // Transições visuais compartilhadas pelos controles de mouse, toque e botões.
 const prefersReduced=window.matchMedia('(prefers-reduced-motion: reduce)');
-let visual={stage:0,angles:[],beamFrom:null,beamTo:null,beamAt:0,enteredAt:0};
+let visual={stage:'',angles:[],beamFrom:null,beamTo:null,beamAt:0,enteredAt:0};
 const ease=p=>{p=Math.max(0,Math.min(1,p));return p*p*(3-2*p)};
 function syncVisual(){
- const stage=active?.stage||0;
+ const stage=active?.id+':'+active?.stage;
  if(visual.stage===stage)return;
  const level=currentLevels()[stage-1];
- visual={stage,angles:level?level.mirrors.map((m,i)=>({from:mirrors[i]?90:0,to:mirrors[i]?90:0,start:0})):[],beamFrom:null,beamTo:level?trace(level,mirrors):null,beamAt:performance.now()-400,enteredAt:performance.now()};
+ visual={stage,angles:level?level.mirrors.map((m,i)=>({from:mirrors[i],to:mirrors[i],start:0})):[],beamFrom:null,beamTo:level?trace(level,mirrors):null,beamAt:performance.now()-400,enteredAt:performance.now()};
 }
-function rotateMirror(i){
- if(!active||i<0||i>=mirrors.length)return;
+function rotateMirror(i,steps=1){
+ if(!active||i<0||i>=mirrors.length||!Number.isInteger(steps)||steps===0)return;
  syncVisual();
- const now=performance.now(),a=visual.angles[i],progress=prefersReduced.matches?1:ease((now-a.start)/420);
+ const now=performance.now(),a=visual.angles[i],progress=prefersReduced.matches?1:ease((now-a.start)/300);
  const current=a.from+(a.to-a.from)*progress;
  visual.beamFrom=visual.beamTo;
- mirrors[i]=!mirrors[i];
- visual.angles[i]={from:current,to:mirrors[i]?90:0,start:now};
+ mirrors[i]=normalizedAngle(mirrors[i]+steps*45);
+ visual.angles[i]={from:current,to:a.to+steps*45,start:now};
  visual.beamTo=trace(currentLevels()[active.stage-1],mirrors);
  visual.beamAt=now;
  beep(540,'mirror');renderControls();
+}
+function setMirrorAngle(i,desired){
+ if(!active||!Number.isInteger(desired)||desired%45!==0)return;
+ const current=normalizedAngle(mirrors[i]),target=normalizedAngle(desired);
+ if(current===target)return;
+ let diff=((target-current+540)%360)-180;if(diff===-180)diff=180;
+ rotateMirror(i,diff/45);
 }
 let animation=0;
 function drawLoop(){
  cancelAnimationFrame(animation);
  const canvas=document.getElementById('gameboard');if(!canvas||!active)return;
- syncVisual();
+ syncVisual();let drag=null;
+ const center=m=>({x:180+m[0]*61,y:43+m[1]*61});
+ canvas.style.touchAction='none';
  canvas.addEventListener('pointerdown',event=>{
-  const pt=canvasPoint(event,canvas),m=currentLevels()[active.stage-1].mirrors;
-  for(let i=0;i<m.length;i++)if(Math.hypot(pt.x-(180+m[i][0]*61),pt.y-(43+m[i][1]*61))<32){rotateMirror(i);break;}
+  const pt=canvasPoint(event,canvas),list=currentLevels()[active.stage-1].mirrors;
+  const i=list.findIndex(m=>{const q=center(m);return Math.hypot(pt.x-q.x,pt.y-q.y)<34});
+  if(i<0)return;
+  event.preventDefault();const pivot=center(list[i]);
+  drag={i,pivot,origin:Math.atan2(pt.y-pivot.y,pt.x-pivot.x),previous:null,accumulated:0,start:mirrors[i],pt,moved:false};
+  if(canvas.setPointerCapture)canvas.setPointerCapture(event.pointerId);
  });
+ canvas.addEventListener('pointermove',event=>{
+  if(!drag)return;const pt=canvasPoint(event,canvas);
+  if(!drag.moved&&Math.hypot(pt.x-drag.pt.x,pt.y-drag.pt.y)>11)drag.moved=true;
+  if(!drag.moved)return;event.preventDefault();
+  const angle=Math.atan2(pt.y-drag.pivot.y,pt.x-drag.pivot.x);
+  if(drag.previous===null)drag.previous=drag.origin;
+  let delta=angle-drag.previous;
+  if(delta>Math.PI)delta-=2*Math.PI;
+  if(delta<-Math.PI)delta+=2*Math.PI;
+  drag.accumulated+=delta;drag.previous=angle;
+  setMirrorAngle(drag.i,drag.start+Math.round(drag.accumulated*180/Math.PI/45)*45);
+ });
+ canvas.addEventListener('pointerup',event=>{
+  if(!drag)return;event.preventDefault();
+  if(!drag.moved)rotateMirror(drag.i,1);
+  drag=null;
+ });
+ canvas.addEventListener('pointercancel',()=>{drag=null});
  const ctx=canvas.getContext('2d');
  function frame(t){if(!canvas.isConnected||view!=='game'||!active)return;draw(ctx,t/1000);animation=requestAnimationFrame(frame)}
  animation=requestAnimationFrame(frame);
@@ -374,9 +423,10 @@ function draw(ctx,t){
  const fade=reduced?1:ease((now-visual.beamAt)/380);
  if(visual.beamFrom&&fade<1)drawBeam(ctx,visual.beamFrom,1-fade,t);
  drawBeam(ctx,visual.beamTo,fade,t);
+ if(visual.beamTo?.blocked){const last=visual.beamTo.points.at(-1),bx=c[0]+last[0]*sz,by=c[1]+last[1]*sz;ctx.fillStyle='rgba(251,191,36,.35)';ctx.beginPath();ctx.arc(bx,by,10,0,Math.PI*2);ctx.fill();}
  q.mirrors.forEach((m,i)=>{
   const [px,py]=[c[0]+m[0]*sz,c[1]+m[1]*sz],a=visual.angles[i];
-  const angle=reduced?a.to:a.from+(a.to-a.from)*ease((now-a.start)/420);
+  const angle=reduced?a.to:a.from+(a.to-a.from)*ease((now-a.start)/300);
   if(mirrorArt.complete&&mirrorArt.naturalWidth){ctx.save();ctx.translate(px,py);ctx.rotate(angle*Math.PI/180);ctx.drawImage(mirrorArt,-29,-29,58,58);ctx.restore();}
   else{ctx.fillStyle='#467995';ctx.beginPath();ctx.arc(px,py,24,0,Math.PI*2);ctx.fill();}
   ctx.fillStyle='#dffaff';ctx.font='bold 11px Arial';ctx.fillText('E'+(i+1),px+15,py+25);
@@ -420,7 +470,7 @@ async function action(type,e){if(type==='mobile-menu'){document.querySelector('.
  if(type==='refresh-ranking'){void refreshRanking();return}
  if(type==='rank-level'){const level=e.target.closest('[data-level]')?.dataset.level;if(Object.hasOwn(DIFFICULTY_LABELS,level)&&rankDifficulty!==level){rankDifficulty=level;board={ranking:[],me:null};rankingError='Carregando...';render();void refreshRanking()}return}
  if(!active)return;
- if(type==='mirror'){const i=+e.target.closest('button').dataset.i;rotateMirror(i);return}
+ if(type==='mirror'){const btn=e.target.closest('button'),i=Number(btn?.dataset.i),step=Number(btn?.dataset.step||1);if(Number.isInteger(i)&&Number.isInteger(step))rotateMirror(i,step);return}
  if(type==='confirm') {if(trace(currentLevels()[active.stage-1],mirrors).hit)void advanceStage();}
 
 }
