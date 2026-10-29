@@ -653,7 +653,7 @@ function scienceScrollContainer(){return view==='science'?document.querySelector
 function scienceScrollTo(top){
  const scroller=scienceScrollContainer();if(!scroller)return;
  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
- scroller.scrollTo({top:Math.max(0,top),behavior:reduce?'instant':'smooth'});
+ scroller.scrollTo({top:Math.max(0,top),behavior:reduce?'auto':'smooth'});
 }
 function scienceJump(id){
  if(view!=='science'||!['sci-gabriela','sci-lab'].includes(id))return;
