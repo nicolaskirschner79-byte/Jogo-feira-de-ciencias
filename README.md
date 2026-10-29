@@ -63,7 +63,7 @@ A dificuldade aumentou preservando a dinâmica leve de duas orientações e o de
 
 ## Painel administrativo (29/10/2026)
 
-Painel em **um único arquivo**: [admin-dashboard.html](./admin-dashboard.html). Não depende de frameworks nem de arquivos CSS/JS separados; precisa de internet para acessar o Supabase.
+O arquivo HTML do painel foi **retirado da branch principal deste repositório** para separação administrativa. Enquanto o novo repositório não é criado, o conteúdo original permanece preservado no [histórico da dashboard](https://github.com/nicolaskirschner79-byte/Jogo-feira-de-ciencias/blob/5cec030ad7cc6971370ac109873dcd557536c00c/admin-dashboard.html). O painel é autossuficiente em HTML/CSS/JS e continua dependendo da conexão com o Supabase.
 
 ### Recursos
 - Visão geral de jogadores, partidas em andamento, partidas concluídas, recordes e desempenho por nível;
