@@ -40,6 +40,14 @@ O cadastro exige dois campos separados: Nome (2 a 35 caracteres) e Sobrenome (2 
 
 **Estado da verificação:** o gerador foi validado com 900 circuitos nos três níveis, e 600 circuitos adicionais passaram nos testes cruzados com a lógica de ângulos da interface, incluindo reflexões equivalentes, bloqueio de 45° e retorno 315°→0°. O JavaScript da interface passou na verificação de sintaxe. O deploy `ligo-api` está na versão 4. Testes HTTP reais com múltiplos visitantes ainda não foram concluídos neste ambiente.
 
+## Correção de estabilidade do tabuleiro (29/10/2026)
+
+A interface apresentou o tabuleiro vazio quando a chave de cena `runId:stage` foi usada erroneamente como índice numérico de fase. A função `syncVisual()` agora usa a **chave textual apenas para distinguir a partida** e o **número inteiro de fase para selecionar o circuito**. Com isso, inicializa corretamente `visual.angles` e `visual.beamTo` e restaura os gráficos do laser e dos espelhos.
+
+O renderizador também foi otimizado: limite de aproximadamente **30 quadros por segundo no computador** e **24 no celular**, suspensão de animações ambientais ao jogar, atualizações do relógio menos frequentes e proteção para que erros gráficos isolados não interrompam permanentemente a animação.
+
+Testes de JavaScript em ambiente simulado, executados contra o código publicado no GitHub e a lógica de geração da API, confirmaram desenho e inicialização do laser e de todos os espelhos nas **15 combinações** (5 fases × 3 dificuldades) sem erros de renderização. Esses testes não substituem uma avaliação visual e de desempenho em dispositivos físicos.
+
 ## Conexão Supabase
 - Projeto: **LIGO - Feira de Ciencias**
 - Project ref: `jgjgmbsgkwdimiinhcbk`
