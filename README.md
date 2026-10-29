@@ -61,36 +61,13 @@ A dificuldade aumentou preservando a dinâmica leve de duas orientações e o de
 **Testes:** 1.050 circuitos gerados e enumerados para verificar solução única e um mínimo de espelhos inicialmente incorretos. Outros testes simulados verificaram o desenho, a contagem de botões e o giro binário das 15 combinações de modo/fase. A função `ligo-api` está publicada na versão 6. Não houve teste de ponta a ponta com navegadores públicos e jogadores reais neste ambiente.
 
 
-## Painel administrativo (29/10/2026)
+## Dashboard administrativa (repositório separado)
 
-O arquivo HTML do painel foi **retirado da branch principal deste repositório** para separação administrativa. Enquanto o novo repositório não é criado, o conteúdo original permanece preservado no [histórico da dashboard](https://github.com/nicolaskirschner79-byte/Jogo-feira-de-ciencias/blob/5cec030ad7cc6971370ac109873dcd557536c00c/admin-dashboard.html). O painel é autossuficiente em HTML/CSS/JS e continua dependendo da conexão com o Supabase.
+O painel de gerenciamento e exclusão de rankings agora tem seu próprio repositório:
 
-### Recursos
-- Visão geral de jogadores, partidas em andamento, partidas concluídas, recordes e desempenho por nível;
-- Rankings por Fácil / Médio / Difícil, busca e exportação CSV;
-- Histórico das partidas recentes e auditoria de exclusões;
-- Excluir jogador de uma dificuldade: remove as partidas concluídas dessa pessoa nessa dificuldade e versão, preservando cadastro e recordes em outros níveis;
-- Limpar ranking por dificuldade ou limpar todos os rankings da versão atual, com confirmação digitada;
-- Atualização automática: Supabase Realtime Broadcast, sem dados pessoais no evento, e sincronização de segurança de 12 segundos.
+**[LIGO-Dashboard-Admin](https://github.com/nicolaskirschner79-byte/LIGO-Dashboard-Admin)**
 
-### Segurança e primeiro acesso
-- Backend em supabase/functions/ligo-admin/index.ts (API *ligo-admin* ativa).
-- Banco com tabelas privadas para lista de acesso e auditoria; ações administrativas via RPC com acesso exclusivo ao servidor.
-- O e-mail administrador está registrado apenas na lista de autorização privada do Supabase. Para usar outro e-mail, ajuste a allowlist diretamente no banco; editar o HTML não concede permissão.
-- Não existe senha predefinida ou senha de administrador no código. No primeiro acesso, digite o e-mail autorizado e escolha uma senha de pelo menos 8 caracteres, depois clique **Primeiro acesso**. Confirme o e-mail e volte para **Entrar no painel**.
-- Caso a confirmação redirecione para localhost, configure a URL do site no Supabase em Authentication → URL Configuration. A confirmação pode já ter ocorrido; volte ao painel e tente entrar.
-- A API valida o token de acesso com o Supabase Auth, verifica o e-mail confirmado e a lista de administradores no servidor.
-- A sessão é guardada na sessionStorage, sem credenciais secretas do banco no HTML.
-
-### Política de exclusão
-- Exclusão individual remove todas as partidas **concluídas da versão challenge-v2** de uma pessoa e dificuldade.
-- Limpeza remove partidas **concluídas da versão challenge-v2** no nível ou em todos os níveis.
-- Nenhuma das ações apaga cadastros, partidas em andamento ou resultados de versões anteriores.
-- Toda exclusão é auditada (admin, ação, nível, data e quantidade excluída).
-- Não há botão de desfazer. Exporte um CSV antes de fazer uma limpeza.
-
-### Validação
-O HTML passou na verificação de sintaxe JavaScript; a função de snapshot retornou dados reais; permissões do banco foram conferidas e a Edge Function está ativa. O primeiro cadastro e login do administrador ainda dependem de confirmar o e-mail e executar um teste real com uma sessão autenticada.
+A dashboard está no arquivo `index.html` desse repositório. O código-fonte da Edge Function administrativa também foi transferido para lá. A API publicada no Supabase permanece ativa e não foi alterada nesta transferência.
 
 ## Conexão Supabase
 - Projeto: **LIGO - Feira de Ciencias**
