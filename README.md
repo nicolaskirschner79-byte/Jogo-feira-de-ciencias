@@ -76,7 +76,7 @@ Painel em **um único arquivo**: [admin-dashboard.html](./admin-dashboard.html).
 ### Segurança e primeiro acesso
 - Backend em supabase/functions/ligo-admin/index.ts (API *ligo-admin* ativa).
 - Banco com tabelas privadas para lista de acesso e auditoria; ações administrativas via RPC com acesso exclusivo ao servidor.
-- E-mail autorizado inicialmente: **nicolaskirschner79@gmail.com**. Para outro e-mail, ajuste a allowlist diretamente no Supabase; editar o HTML não concede permissão.
+- O e-mail administrador está registrado apenas na lista de autorização privada do Supabase. Para usar outro e-mail, ajuste a allowlist diretamente no banco; editar o HTML não concede permissão.
 - Não existe senha predefinida ou senha de administrador no código. No primeiro acesso, digite o e-mail autorizado e escolha uma senha de pelo menos 8 caracteres, depois clique **Primeiro acesso**. Confirme o e-mail e volte para **Entrar no painel**.
 - Caso a confirmação redirecione para localhost, configure a URL do site no Supabase em Authentication → URL Configuration. A confirmação pode já ter ocorrido; volte ao painel e tente entrar.
 - A API valida o token de acesso com o Supabase Auth, verifica o e-mail confirmado e a lista de administradores no servidor.
