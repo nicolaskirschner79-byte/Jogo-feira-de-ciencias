@@ -11,6 +11,24 @@ Jogo educativo com cinco circuitos de reflexão por partida, com posições gera
 - Os tokens de identidade são armazenados no navegador do dispositivo da feira; usar um perfil de navegador público implica riscos de acesso local e exige cuidado com limpeza de dados após o evento.
 
 
+## Cadastro e níveis — feira de ciências
+
+**Fluxo:** Iniciar missão → digitar Nome e Sobrenome (campos obrigatórios) → escolher **Fácil**, **Médio** ou **Difícil** → tutorial → cinco circuitos gerados no servidor → resultado com tempo e posição.
+
+| Nível | Espelhos ao longo das cinco fases |
+| --- | --- |
+| Fácil | 1, 2, 2, 3, 3 |
+| Médio | 2, 3, 3, 4, 4 |
+| Difícil | 3, 4, 4, 5, 5 |
+
+As posições do emissor, receptor e espelhos continuam aleatórias, com solução única conferida pelo backend. O ranking salva o melhor tempo **por jogador e por dificuldade**. A aba Ranking permite alternar entre os três níveis e consulta os dados automaticamente.
+
+O cadastro exige dois campos separados: Nome (2 a 35 caracteres) e Sobrenome (2 a 45 caracteres). Não aceita cadastrar um jogador novo com somente um nome. Os registros anteriores continuam armazenados como `legado` e não são comparados aos novos modos. Pessoas com o mesmo nome completo em navegadores diferentes podem ter identidades diferentes; no mesmo navegador o perfil é reaproveitado pelo nome completo digitado.
+
+**Privacidade:** o nome completo é publicado no ranking. Como a feira pode receber menores de idade, obtenha consentimento adequado dos responsáveis ou considere mudar para a exibição de nome e inicial do sobrenome antes de divulgar o endereço do jogo.
+
+**Estado da verificação:** o algoritmo do servidor gerou e validou 75 circuitos nos três níveis, sem falhas nos testes lógicos. Código JavaScript do cliente passou na verificação sintática. O deploy `ligo-api` está na versão 3. Testes HTTP reais com múltiplos visitantes ainda não foram concluídos neste ambiente.
+
 ## Conexão Supabase
 - Projeto: **LIGO - Feira de Ciencias**
 - Project ref: `jgjgmbsgkwdimiinhcbk`
