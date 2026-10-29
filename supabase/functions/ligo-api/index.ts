@@ -40,7 +40,7 @@ function generate(stage,seed,difficulty){
   dificil:[4,4,5,5,6]
  };
  const rng=rand(seed),step=[[1,0],[0,1],[-1,0],[0,-1]],dirs=['right','down','left','up'],count=mirrorCounts[difficulty][stage-1];
- const initialAngles={facil:[0,90],medio:[0,45,90,135,180,270],dificil:[0,45,90,135,180,225,270,315]}[difficulty];
+ // Duas posições ópticas por espelho, independentemente da dificuldade.
  const minimumSegment=difficulty==='facil'?3:difficulty==='medio'?2:1;
  for(let attempt=0;attempt<85000;attempt++){
   let x=1+Math.floor(rng()*9),y=1+Math.floor(rng()*5),dir=Math.floor(rng()*4);
@@ -51,7 +51,7 @@ function generate(stage,seed,difficulty){
    if(!valid)break;
    const next=(dir+(rng()<.5?1:3))%4;
    const slash=step[next][0]===-step[dir][1]&&step[next][1]===-step[dir][0];
-   mirrors.push([x,y,initialAngles[Math.floor(rng()*initialAngles.length)]]);solution.push(slash);dir=next;
+   mirrors.push([x,y,rng()<.5]);solution.push(slash);dir=next;
   }
   if(!valid)continue;
   const n=1+Math.floor(rng()*3),[dx,dy]=step[dir];
@@ -60,11 +60,15 @@ function generate(stage,seed,difficulty){
   const puzzle={title:'Circuito '+stage,emitter:start,receiver:[x,y],direction:dirs[initial],mirrors};
   let wins=0;
   for(let mask=0;mask<(1<<count);mask++)if(trace(puzzle,mirrors.map((_,i)=>Boolean(mask&(1<<i)))))wins++;
-  if(wins===1&&!mirrors.every((m,i)=>m[2]%90===0 && (m[2]%180===90)===solution[i]))return {puzzle,solution};
+  if(wins===1&&!mirrors.every((m,i)=>m[2]===solution[i]))return {puzzle,solution};
  }
  throw Error('GENERATOR_FAILED');
 }
-function publicPuzzle(p){return {title:p.title,emitter:p.emitter,receiver:p.receiver,direction:p.direction,mirrors:p.mirrors}}
+function publicPuzzle(p){
+ // Conserva sessões antigas: ângulos legados são convertidos em '/' e '\\'.
+ const mirrors=p.mirrors.map(([x,y,value])=>[x,y,typeof value==='boolean'?value:((Number(value)||0)%180===90)]);
+ return {title:p.title,emitter:p.emitter,receiver:p.receiver,direction:p.direction,mirrors};
+}
 async function getChallenge(run){
  const rows=await db('stage_challenges?select=stage,puzzle&run_id=eq.'+run.id+'&stage=eq.'+run.stage+'&limit=1');
  if(rows.length)return publicPuzzle(rows[0].puzzle);
