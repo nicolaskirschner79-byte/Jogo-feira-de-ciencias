@@ -18,16 +18,27 @@ Jogo educativo com cinco circuitos de reflexão por partida, com posições gera
 | Nível | Espelhos ao longo das cinco fases |
 | --- | --- |
 | Fácil | 1, 2, 2, 3, 3 |
-| Médio | 2, 3, 3, 4, 4 |
-| Difícil | 3, 4, 4, 5, 5 |
+| Médio | 2, 3, 4, 4, 5 |
+| Difícil | 4, 4, 5, 5, 6 |
 
-As posições do emissor, receptor e espelhos continuam aleatórias, com solução única conferida pelo backend. O ranking salva o melhor tempo **por jogador e por dificuldade**. A aba Ranking permite alternar entre os três níveis e consulta os dados automaticamente.
+Os circuitos são gerados no Supabase, com posições variáveis do emissor, receptor e espelhos. A complexidade é progressiva em dois eixos: a quantidade de reflexões obrigatórias e o comprimento dos segmentos entre as curvas (mais curtos no Difícil).
+
+### Giro completo de 360°
+
+- Clique em um espelho do tabuleiro para girar **+45°**.
+- Arraste o espelho com mouse ou toque para girá-lo em qualquer direção ao longo da volta completa, com encaixe em incrementos de 45°.
+- Use os botões **↶ −45°** e **↷ +45°** abaixo do tabuleiro para ajustar com precisão.
+- O visor de cada espelho mostra a orientação de **0°, 45°, 90°, 135°, 180°, 225°, 270° ou 315°**. Após 315°, o próximo passo retorna a 0° e o sprite gira suavemente até 360°.
+- Como a simulação usa trajetos horizontais e verticais, o feixe é refletido nas orientações equivalentes **0°/180°** e **90°/270°**. Orientações intermediárias sem alinhamento **interrompem o feixe** e sinalizam o espelho.
+- A animação respeita a opção de movimento reduzido do dispositivo.
+
+A solução do servidor continua protegida como orientações ópticas equivalentes (duas possibilidades a cada 180°); antes de registrar uma fase no ranking, a API verifica os ângulos informados pelo cliente e normaliza as duas direções. Todas as soluções equivalentes são aceitas, sem exigir uma volta ou direção de giro específicas. O ranking salva o melhor tempo **por jogador e por dificuldade**. A aba Ranking permite alternar entre os três níveis e consulta os dados automaticamente.
 
 O cadastro exige dois campos separados: Nome (2 a 35 caracteres) e Sobrenome (2 a 45 caracteres). Não aceita cadastrar um jogador novo com somente um nome. Os registros anteriores continuam armazenados como `legado` e não são comparados aos novos modos. Pessoas com o mesmo nome completo em navegadores diferentes podem ter identidades diferentes; no mesmo navegador o perfil é reaproveitado pelo nome completo digitado.
 
 **Privacidade:** o nome completo é publicado no ranking. Como a feira pode receber menores de idade, obtenha consentimento adequado dos responsáveis ou considere mudar para a exibição de nome e inicial do sobrenome antes de divulgar o endereço do jogo.
 
-**Estado da verificação:** o algoritmo do servidor gerou e validou 75 circuitos nos três níveis, sem falhas nos testes lógicos. Código JavaScript do cliente passou na verificação sintática. O deploy `ligo-api` está na versão 3. Testes HTTP reais com múltiplos visitantes ainda não foram concluídos neste ambiente.
+**Estado da verificação:** o gerador foi validado com 900 circuitos nos três níveis, e 600 circuitos adicionais passaram nos testes cruzados com a lógica de ângulos da interface, incluindo reflexões equivalentes, bloqueio de 45° e retorno 315°→0°. O JavaScript da interface passou na verificação de sintaxe. O deploy `ligo-api` está na versão 4. Testes HTTP reais com múltiplos visitantes ainda não foram concluídos neste ambiente.
 
 ## Conexão Supabase
 - Projeto: **LIGO - Feira de Ciencias**
