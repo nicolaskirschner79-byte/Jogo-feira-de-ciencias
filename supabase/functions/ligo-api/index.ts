@@ -4,6 +4,8 @@ const BASE = Deno.env.get('SUPABASE_URL') || '';
 const SECRET = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const HEAD = {'Content-Type':'application/json', 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'apikey,authorization,content-type','Cache-Control':'no-store'};
 const dbHeaders = {apikey:SECRET, Authorization:'Bearer '+SECRET, 'Content-Type':'application/json'};
+const DIFFICULTIES=['facil','medio','dificil'];
+const isDifficulty=v=>typeof v==='string'&&DIFFICULTIES.includes(v);
 const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:HEAD});
 async function db(path, options={}){
  const res=await fetch(BASE+'/rest/v1/'+path,{method:options.method||'GET',headers:{...dbHeaders,...(options.headers||{})},body:options.body?JSON.stringify(options.body):undefined,signal:AbortSignal.timeout(10000)});
@@ -30,8 +32,14 @@ function trace(p,states){
  }
  return false;
 }
-function generate(stage,seed){
- const rng=rand(seed),step=[[1,0],[0,1],[-1,0],[0,-1]],dirs=['right','down','left','up'],count=stage<=3?stage+1:stage;
+function generate(stage,seed,difficulty){
+ if(!isDifficulty(difficulty)||stage<1||stage>5)throw Error('DIFFICULTY_INVALID');
+ const mirrorCounts={
+  facil:[1,2,2,3,3],
+  medio:[2,3,3,4,4],
+  dificil:[3,4,4,5,5]
+ };
+ const rng=rand(seed),step=[[1,0],[0,1],[-1,0],[0,-1]],dirs=['right','down','left','up'],count=mirrorCounts[difficulty][stage-1];
  for(let attempt=0;attempt<85000;attempt++){
   let x=1+Math.floor(rng()*9),y=1+Math.floor(rng()*5),dir=Math.floor(rng()*4);
   const start=[x,y],initial=dir,seen=new Set([x+','+y]),mirrors=[],solution=[];let valid=true;
@@ -59,7 +67,7 @@ async function getChallenge(run){
  const rows=await db('stage_challenges?select=stage,puzzle&run_id=eq.'+run.id+'&stage=eq.'+run.stage+'&limit=1');
  if(rows.length)return publicPuzzle(rows[0].puzzle);
  for(let i=0;i<12;i++){
-  const seed=crypto.getRandomValues(new Uint32Array(1))[0],g=generate(run.stage,seed);
+  const seed=crypto.getRandomValues(new Uint32Array(1))[0],g=generate(run.stage,seed,run.difficulty);
   const fingerprint=await digest(JSON.stringify({emitter:g.puzzle.emitter,receiver:g.puzzle.receiver,direction:g.puzzle.direction,mirrors:g.puzzle.mirrors.map(m=>m.slice(0,2))}));
   try{
    const row=await db('stage_challenges',{method:'POST',headers:{Prefer:'return=representation'},body:{run_id:run.id,stage:run.stage,puzzle:g.puzzle,solution:g.solution,fingerprint}});
@@ -72,12 +80,13 @@ async function getChallenge(run){
  throw Error('GENERATOR_CONFLICT');
 }
 async function getRun(playerId,runId){
- let q='game_runs?select=id,stage,started_at,status,duration_ms&player_id=eq.'+playerId;
+ let q='game_runs?select=id,stage,difficulty,started_at,status,duration_ms&player_id=eq.'+playerId;
  if(runId)q+='&id=eq.'+encodeURIComponent(runId);
  else q+='&status=eq.playing&order=started_at.desc';
  const rows=await db(q+'&limit=1');return rows[0]||null;
 }
-async function start(player, fresh=false){
+async function start(player, fresh=false,difficulty='medio'){
+ if(!isDifficulty(difficulty))return {error:'DIFICULDADE_INVALIDA'};
  // Em feira, uma nova entrada de nome inicia uma nova tentativa.
  // Uma tentativa anterior não concluída deste mesmo jogador fica abandonada.
  if(fresh){
@@ -90,19 +99,21 @@ async function start(player, fresh=false){
   const cutoff=new Date(Date.now()-3600000).toISOString();
   const history=await db('game_runs?select=id&player_id=eq.'+player.id+'&started_at=gte.'+encodeURIComponent(cutoff)+'&limit=11');
   if(history.length>=10)return {error:'LIMITE_TENTATIVAS',retry:'Tente novamente mais tarde.'};
-  try{const rows=await db('game_runs',{method:'POST',headers:{Prefer:'return=representation'},body:{player_id:player.id}});run=rows[0]}
+  try{const rows=await db('game_runs',{method:'POST',headers:{Prefer:'return=representation'},body:{player_id:player.id,difficulty}});run=rows[0]}
   catch(e){if(!String(e).includes('DB_409'))throw e;run=await getRun(player.id)}
  }
  if(!run)return {error:'PARTIDA_NAO_ENCONTRADA'};
  const puzzle=await getChallenge(run);
- return {run_id:run.id,stage:run.stage,started_at:run.started_at,puzzle,server_now:new Date().toISOString()};
+ return {run_id:run.id,stage:run.stage,difficulty:run.difficulty,started_at:run.started_at,puzzle,server_now:new Date().toISOString()};
 }
-async function rank(p){
- const rows=await db('global_ranking?select=position,player_id,nickname,best_ms,record_at&order=position.asc&limit=100');
+async function rank(p,difficulty){
+ if(!isDifficulty(difficulty))return {error:'DIFICULDADE_INVALIDA'};
+ const rows=await db('global_ranking?select=position,player_id,nickname,best_ms,record_at&difficulty=eq.'+difficulty+'&order=position.asc&limit=100');
  let mine=null;
- if(p){const rr=await db('global_ranking?select=position,best_ms&player_id=eq.'+p.id+'&limit=1');mine=rr[0]||null}
- return {ranking:rows,me:mine,updated_at:new Date().toISOString()};
+ if(p){const rr=await db('global_ranking?select=position,best_ms,player_id&difficulty=eq.'+difficulty+'&player_id=eq.'+p.id+'&limit=1');mine=rr[0]||null}
+ return {ranking:rows,me:mine,difficulty,updated_at:new Date().toISOString()};
 }
+
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:HEAD});
  if(req.method!=='POST')return reply({error:'METHOD_NOT_ALLOWED'},405);
@@ -113,8 +124,14 @@ Deno.serve(async req=>{
   if(action==='health')return reply({ok:true,service:'ligo-api',timestamp:new Date().toISOString()});
   if(action==='register'){
    if(!/^[a-f0-9]{64}$/i.test(data.token||''))return reply({error:'TOKEN_INVALIDO'},400);
-   const nickname=String(data.nickname||'').normalize('NFC').trim().replace(/\s+/g,' ');
-   if(!/^[\p{L}\p{N} ]{3,18}$/u.test(nickname)||/^(admin|administrador|sistema)$/i.test(nickname))return reply({error:'NOME_INVALIDO'},400);
+   const first=String(data.first_name||'').normalize('NFC').trim().replace(/\s+/g,' ');
+   const last=String(data.last_name||'').normalize('NFC').trim().replace(/\s+/g,' ');
+   const namePattern=/^[\p{L}][\p{L}'-]*(?: [\p{L}][\p{L}'-]*)*$/u;
+   const nickname=first+' '+last;
+   if(first.length<2||first.length>35||last.length<2||last.length>45||
+      nickname.length>80||!namePattern.test(first)||!namePattern.test(last)||
+      /^(admin|administrador|sistema)$/i.test(first))
+     return reply({error:'NOME_COMPLETO_INVALIDO'},400);
    const p=await playerFor(data.token);
    if(p){
      // Um token de outro participante nunca pode substituir o nome exibido.
@@ -127,19 +144,21 @@ Deno.serve(async req=>{
     return reply({player:{id:ins[0].id,nickname:ins[0].nickname},existing:false});
    }catch(e){if(String(e).includes('DB_409'))return reply({error:'NOME_JA_UTILIZADO'},409);throw e}
   }
-  if(action==='ranking')return reply(await rank(await playerFor(data.token)));
+  if(action==='ranking')return reply(await rank(await playerFor(data.token),data.difficulty));
   const player=await playerFor(data.token);
   if(!player)return reply({error:'JOGADOR_NAO_ENCONTRADO'},401);
   if(action==='profile')return reply({player,run:await getRun(player.id)});
-  if(action==='start')return reply(await start(player,data.fresh===true));
+  if(action==='start')return reply(await start(player,data.fresh===true,data.difficulty));
   if(action==='submit'){
    if(!/^[0-9a-f-]{36}$/i.test(String(data.run_id))||!Array.isArray(data.states)||data.states.length>5||data.states.some(s=>typeof s!=='boolean'))return reply({error:'DADOS_INVALIDOS'},400);
+   const initial=await getRun(player.id,data.run_id);
+   if(!initial||!isDifficulty(initial.difficulty))return reply({error:'PARTIDA_INVALIDA'},400);
    const out=await db('rpc/ligo_submit_stage',{method:'POST',body:{p_run_id:data.run_id,p_player_id:player.id,p_states:data.states}});
    if(!out?.ok)return reply({error:out?.error||'SOLUCAO_INVALIDA'},400);
-   if(out.finished){return reply({finished:true,duration_ms:out.duration_ms,...await rank(player)})}
+   if(out.finished){return reply({finished:true,duration_ms:out.duration_ms,...await rank(player,initial.difficulty)})}
    const run=await getRun(player.id,data.run_id);
    if(!run)return reply({error:'PARTIDA_NAO_ENCONTRADA'},404);
-   return reply({finished:false,stage:run.stage,puzzle:await getChallenge(run),started_at:run.started_at,run_id:run.id});
+   return reply({finished:false,stage:run.stage,difficulty:run.difficulty,puzzle:await getChallenge(run),started_at:run.started_at,run_id:run.id});
   }
   return reply({error:'ACAO_DESCONHECIDA'},404);
  }catch(e){const msg=String(e);return reply({error:msg.includes('DB_')?'FALHA_NO_BANCO':'ERRO_INTERNO',detail:msg.slice(0,95)},500)}
